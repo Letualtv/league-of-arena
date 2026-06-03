@@ -257,70 +257,114 @@ include __DIR__ . '/includes/header.php';
         <!-- ===== Formulario crear logro ===== -->
         <div class="card">
             <h2 class="card-title"><i class="fa-solid fa-plus"></i> Crear nuevo logro</h2>
-            <form method="POST" style="display:flex;flex-direction:column;gap:1rem">
+
+            <!-- Previsualización en vivo -->
+            <div id="logro-preview" style="
+                display:flex;align-items:center;gap:1rem;
+                padding:.85rem 1rem;margin-bottom:1.25rem;
+                background:var(--bg-elevated);border:1px solid var(--border);
+                border-radius:10px;border-left:3px solid var(--gold)">
+                <div style="width:44px;height:44px;border-radius:50%;background:rgba(200,155,60,.15);
+                            border:2px solid rgba(200,155,60,.35);display:flex;align-items:center;
+                            justify-content:center;flex-shrink:0">
+                    <i id="prev-icono" class="fa-solid fa-trophy" style="font-size:1.15rem;color:var(--gold)"></i>
+                </div>
+                <div style="min-width:0">
+                    <div id="prev-nombre" style="font-weight:700;font-size:.95rem;color:var(--text-bright)">Nombre del logro</div>
+                    <div id="prev-desc" style="font-size:.78rem;color:var(--text-muted);margin-top:.1rem">Descripción del logro</div>
+                    <div id="prev-titulo" style="display:none;font-size:.72rem;color:var(--gold);margin-top:.2rem">
+                        <i class="fa-solid fa-tag"></i> <span id="prev-titulo-text"></span>
+                    </div>
+                </div>
+            </div>
+
+            <form method="POST" style="display:flex;flex-direction:column;gap:.85rem">
                 <input type="hidden" name="action" value="crear">
 
-                <div class="form-group">
-                    <label class="form-label">Tipo de logro</label>
-                    <select name="tipo" id="admin-tipo" class="form-input" onchange="adminTipoChange(this.value)">
-                        <option value="total">Cantidad total de campeones</option>
-                        <?php foreach (LogrosManager::CLASES as $en => $es): ?>
-                        <option value="<?= $en ?>"><?= $es ?> (por clase)</option>
-                        <?php endforeach; ?>
-                        <option value="campeon">Campeón específico</option>
-                    </select>
+                <!-- Tipo + Objetivo en la misma fila -->
+                <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:end">
+                    <div class="form-group" style="margin:0">
+                        <label class="form-label">Tipo de logro</label>
+                        <select name="tipo" id="admin-tipo" class="form-input" onchange="adminTipoChange(this.value)">
+                            <option value="total">Total de campeones ganados</option>
+                            <?php foreach (LogrosManager::CLASES as $en => $es): ?>
+                            <option value="<?= $en ?>"><?= $es ?> (por clase)</option>
+                            <?php endforeach; ?>
+                            <option value="campeon">Campeón específico</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="group-objetivo" style="margin:0;width:90px">
+                        <label class="form-label">Objetivo</label>
+                        <input type="number" name="objetivo" id="admin-objetivo" class="form-input" value="1" min="1" max="9999">
+                    </div>
                 </div>
 
                 <!-- Campeón específico (solo visible cuando tipo=campeon) -->
-                <div class="form-group" id="group-campeon" style="display:none">
+                <div class="form-group" id="group-campeon" style="display:none;margin:0">
                     <label class="form-label">Campeón</label>
                     <select name="campeon_id" id="admin-campeon" class="form-input" onchange="adminAutoFill()">
                         <?php foreach ($campeones as $key => $c): ?>
                         <option value="<?= (int)$c['key'] ?>" data-nombre="<?= htmlspecialchars($c['name']) ?>">
-                            <?= htmlspecialchars($c['name']) ?> (<?= (int)$c['key'] ?>)
+                            <?= htmlspecialchars($c['name']) ?>
                         </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
-                <!-- Objetivo (oculto para tipo campeon) -->
-                <div class="form-group" id="group-objetivo">
-                    <label class="form-label">Cantidad objetivo</label>
-                    <input type="number" name="objetivo" class="form-input" value="1" min="1" max="9999">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Clave interna <span class="text-muted">(sin espacios, única)</span></label>
-                    <input type="text" name="clave" id="admin-clave" class="form-input" placeholder="ej: camp_75 / campeon_miss_fortune" required>
-                </div>
-
-                <div class="form-group">
+                <!-- Nombre (genera la clave automáticamente) -->
+                <div class="form-group" style="margin:0">
                     <label class="form-label">Nombre del logro</label>
-                    <input type="text" name="nombre" id="admin-nombre" class="form-input" placeholder="ej: La Fortuna Sonrie" required>
+                    <input type="text" name="nombre" id="admin-nombre" class="form-input"
+                           placeholder="ej: La Fortuna Sonríe"
+                           oninput="adminSyncNombre(this.value)" required>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="margin:0">
                     <label class="form-label">Descripción</label>
-                    <input type="text" name="desc" class="form-input" placeholder="ej: Gana con Miss Fortune. Clásica del tirador." required>
+                    <input type="text" name="desc" id="admin-desc" class="form-input"
+                           placeholder="ej: Gana con Miss Fortune. Clásica del tirador."
+                           oninput="document.getElementById('prev-desc').textContent=this.value||'Descripción del logro'"
+                           required>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Título que desbloquea <span class="text-muted">(opcional)</span></label>
-                    <input type="text" name="titulo" class="form-input" placeholder="ej: La Fortuna de la Arena">
-                    <small class="text-muted">Si lo rellenas, el jugador podrá equipar este título en su perfil.</small>
+                <!-- Icono con previsualización integrada -->
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">
+                        Icono &nbsp;<a href="https://fontawesome.com/icons" target="_blank"
+                           style="font-size:.75rem;color:var(--gold);font-weight:400">
+                            fontawesome.com/icons <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:.65rem"></i>
+                        </a>
+                    </label>
+                    <input type="text" name="icono" id="admin-icono" class="form-input"
+                           value="fa-solid fa-trophy"
+                           placeholder="fa-solid fa-trophy"
+                           oninput="adminSyncIcono(this.value)">
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Icono <span class="text-muted">(clase Font Awesome)</span></label>
-                    <div style="display:flex;gap:.5rem;align-items:center">
-                        <input type="text" name="icono" id="admin-icono" class="form-input" value="fa-solid fa-trophy"
-                               oninput="document.getElementById('admin-icono-preview').className=this.value">
-                        <i id="admin-icono-preview" class="fa-solid fa-trophy" style="font-size:1.5rem;color:var(--gold);min-width:2rem"></i>
+                <!-- Título (opcional) -->
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">
+                        Título que desbloquea &nbsp;<span class="text-muted" style="font-weight:400;font-size:.78rem">— opcional</span>
+                    </label>
+                    <input type="text" name="titulo" id="admin-titulo" class="form-input"
+                           placeholder="ej: La Fortuna de la Arena"
+                           oninput="adminSyncTitulo(this.value)">
+                </div>
+
+                <!-- Clave interna (colapsada, auto-generada) -->
+                <details style="margin-top:.15rem">
+                    <summary style="cursor:pointer;font-size:.78rem;color:var(--text-muted);user-select:none">
+                        <i class="fa-solid fa-key" style="font-size:.7rem"></i> Clave interna (auto-generada)
+                    </summary>
+                    <div style="margin-top:.5rem">
+                        <input type="text" name="clave" id="admin-clave" class="form-input"
+                               placeholder="ej: camp_75"
+                               style="font-size:.82rem;font-family:monospace" required>
+                        <small class="text-muted">Se genera sola al escribir el nombre. Cámbiala si es necesario.</small>
                     </div>
-                    <small class="text-muted">Busca en <a href="https://fontawesome.com/icons" target="_blank" style="color:var(--gold)">fontawesome.com/icons</a> → copiar la clase</small>
-                </div>
+                </details>
 
-                <button type="submit" class="btn btn-primary" style="margin-top:.5rem">
+                <button type="submit" class="btn btn-primary" style="margin-top:.25rem">
                     <i class="fa-solid fa-plus"></i> Crear logro
                 </button>
             </form>
@@ -488,14 +532,36 @@ function adminTipoChange(tipo) {
 }
 
 function adminAutoFill() {
-    const sel = document.getElementById('admin-campeon');
-    const opt = sel.options[sel.selectedIndex];
-    const nombre = opt.dataset.nombre || '';
-    const id = sel.value;
-    document.getElementById('admin-clave').value = 'campeon_' + nombre.toLowerCase().replace(/[^a-z0-9]/g,'_');
+    const sel    = document.getElementById('admin-campeon');
+    const nombre = sel.options[sel.selectedIndex].dataset.nombre || '';
+    const slug   = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    document.getElementById('admin-clave').value  = 'campeon_' + slug;
     document.getElementById('admin-nombre').value = 'Jugador de ' + nombre;
     document.getElementById('admin-icono').value  = 'fa-solid fa-star';
-    document.getElementById('admin-icono-preview').className = 'fa-solid fa-star';
+    adminSyncNombre('Jugador de ' + nombre);
+    adminSyncIcono('fa-solid fa-star');
+}
+
+function adminSyncNombre(v) {
+    document.getElementById('prev-nombre').textContent = v || 'Nombre del logro';
+    // Auto-generar clave desde el nombre
+    const slug = v.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const obj = document.getElementById('admin-objetivo');
+    const sufijo = obj && !obj.closest('#group-objetivo').style.display ? '_' + obj.value : '';
+    document.getElementById('admin-clave').value = slug + sufijo;
+}
+
+function adminSyncIcono(v) {
+    const cls = v.trim() || 'fa-solid fa-trophy';
+    document.getElementById('prev-icono').className = cls;
+}
+
+function adminSyncTitulo(v) {
+    const wrap = document.getElementById('prev-titulo');
+    document.getElementById('prev-titulo-text').textContent = v;
+    wrap.style.display = v ? '' : 'none';
 }
 </script>
 
