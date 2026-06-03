@@ -9,6 +9,22 @@ Creado por [Antonio Pulido DEV](https://github.com/Letualtv)
 
 ---
 
+## Screenshots
+
+| Inicio | Perfil |
+|--------|--------|
+| ![Inicio](screenshots/inicio.png) | ![Perfil](screenshots/perfil.png) |
+
+| Campeones | Logros |
+|-----------|--------|
+| ![Campeones](screenshots/campeones.png) | ![Logros](screenshots/logros.png) |
+
+| Ranking | Móvil |
+|---------|-------|
+| ![Ranking](screenshots/ranking.png) | ![Móvil](screenshots/movil.png) |
+
+---
+
 ## Tabla de contenidos
 
 - [Tecnologías](#tecnologías)
