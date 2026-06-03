@@ -71,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'migra
         "ALTER TABLE invocadores ADD COLUMN top_campeon VARCHAR(50) NULL DEFAULT NULL"                                         => 'invocadores.top_campeon',
         "ALTER TABLE invocadores ADD COLUMN titulo_activo VARCHAR(100) NULL DEFAULT NULL"                                      => 'invocadores.titulo_activo',
         "ALTER TABLE campeones_ganados ADD COLUMN campeon_clase VARCHAR(20) NULL DEFAULT NULL AFTER campeon_nombre"            => 'campeones_ganados.campeon_clase',
+        "ALTER TABLE invocadores ADD COLUMN apodo VARCHAR(50) NULL DEFAULT NULL AFTER tag_line"                                => 'invocadores.apodo',
     ];
 
     foreach ($alters as $sql => $desc) {
@@ -162,6 +163,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reset
     if ($puuid) {
         $db->prepare('UPDATE invocadores SET pin_hash = NULL WHERE puuid = ?')->execute([$puuid]);
         $msg = 'PIN reseteado. El jugador puede volver a reclamar su cuenta.';
+    }
+}
+
+// ===== Procesar: borrar apodo de una cuenta =====
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'borrar_apodo') {
+    $puuid = trim($_POST['puuid'] ?? '');
+    if ($puuid) {
+        $db->prepare('UPDATE invocadores SET apodo = NULL WHERE puuid = ?')->execute([$puuid]);
+        $msg = 'Apodo eliminado.';
     }
 }
 
@@ -381,7 +391,12 @@ include __DIR__ . '/includes/header.php';
                 <!-- Info -->
                 <div style="flex:1;min-width:0">
                     <span style="font-weight:600;font-size:.9rem;color:var(--text-bright)">
+                        <?php if (!empty($inv['apodo'])): ?>
+                        <?= htmlspecialchars($inv['apodo']) ?>
+                        <span style="color:var(--text-muted);font-weight:400;font-size:.8em"> (<?= htmlspecialchars($inv['game_name']) ?>#<?= htmlspecialchars($inv['tag_line']) ?>)</span>
+                        <?php else: ?>
                         <?= htmlspecialchars($inv['game_name']) ?><span style="color:var(--text-muted);font-weight:400">#<?= htmlspecialchars($inv['tag_line']) ?></span>
+                        <?php endif; ?>
                     </span>
                     <span class="badge badge-region" style="margin-left:.4rem"><?= htmlspecialchars($inv['region']) ?></span>
                     <?php if ($esSelf): ?>
@@ -398,9 +413,19 @@ include __DIR__ . '/includes/header.php';
 
                 <!-- Acciones -->
                 <?php if (!$esSelf): ?>
-                <div style="display:flex;gap:.4rem;flex-shrink:0">
+                <div style="display:flex;gap:.4rem;flex-shrink:0;flex-wrap:wrap">
+                    <?php if (!empty($inv['apodo'])): ?>
+                    <form method="POST" onsubmit="return confirm('¿Quitar el apodo de <?= htmlspecialchars(addslashes(nombreDisplay($inv))) ?>?')">
+                        <input type="hidden" name="action" value="borrar_apodo">
+                        <input type="hidden" name="puuid" value="<?= htmlspecialchars($inv['puuid']) ?>">
+                        <button type="submit" class="btn btn-sm btn-outline" title="Quitar apodo"
+                                style="border-color:var(--text-muted);color:var(--text-muted)">
+                            <i class="fa-solid fa-pen-slash"></i> Quitar apodo
+                        </button>
+                    </form>
+                    <?php endif; ?>
                     <?php if ($reclamada): ?>
-                    <form method="POST" onsubmit="return confirm('¿Resetear el PIN de <?= htmlspecialchars(addslashes($inv['game_name'])) ?>? Podrá poner uno nuevo.')">
+                    <form method="POST" onsubmit="return confirm('¿Resetear el PIN de <?= htmlspecialchars(addslashes(nombreDisplay($inv))) ?>? Podrá poner uno nuevo.')">
                         <input type="hidden" name="action" value="reset_pin">
                         <input type="hidden" name="puuid" value="<?= htmlspecialchars($inv['puuid']) ?>">
                         <button type="submit" class="btn btn-sm btn-outline" title="Resetear PIN"
@@ -409,7 +434,7 @@ include __DIR__ . '/includes/header.php';
                         </button>
                     </form>
                     <?php endif; ?>
-                    <form method="POST" onsubmit="return confirm('¿ELIMINAR la cuenta de <?= htmlspecialchars(addslashes($inv['game_name'])) ?>? Se borrarán todas sus partidas, campeones y logros. Esta acción NO se puede deshacer.')">
+                    <form method="POST" onsubmit="return confirm('¿ELIMINAR la cuenta de <?= htmlspecialchars(addslashes(nombreDisplay($inv))) ?>? Se borrarán todas sus partidas, campeones y logros. Esta acción NO se puede deshacer.')">
                         <input type="hidden" name="action" value="borrar_cuenta">
                         <input type="hidden" name="puuid" value="<?= htmlspecialchars($inv['puuid']) ?>">
                         <button type="submit" class="btn btn-sm" title="Eliminar cuenta"

@@ -182,16 +182,39 @@ include __DIR__ . '/includes/header.php';
                 <label style="color:var(--text-muted);font-size:.85rem;font-weight:600;white-space:nowrap;">
                     <i class="fa-solid fa-pen"></i> Apodo
                 </label>
-                <input type="text" name="apodo" maxlength="50"
-                       placeholder="<?= htmlspecialchars($invocador['game_name']) ?>"
-                       value="<?= htmlspecialchars($invocador['apodo'] ?? '') ?>"
-                       style="flex:1;min-width:140px;background:var(--bg-card);color:var(--text-bright);
-                              border:1px solid var(--border);border-radius:6px;
-                              padding:.4rem .85rem;font-size:.9rem;">
+                <div style="flex:1;min-width:140px;position:relative">
+                    <input type="text" name="apodo" id="apodo-input" maxlength="50"
+                           placeholder="<?= htmlspecialchars($invocador['game_name']) ?>"
+                           value="<?= htmlspecialchars($invocador['apodo'] ?? '') ?>"
+                           style="width:100%;background:var(--bg-card);color:var(--text-bright);
+                                  border:1px solid var(--border);border-radius:6px;
+                                  padding:.4rem 3rem .4rem .85rem;font-size:.9rem;box-sizing:border-box;">
+                    <span id="apodo-count" style="position:absolute;right:.6rem;top:50%;transform:translateY(-50%);
+                                                  font-size:.72rem;color:var(--text-muted);pointer-events:none">
+                        <?= mb_strlen($invocador['apodo'] ?? '') ?>/50
+                    </span>
+                </div>
                 <button type="submit" class="btn btn-outline btn-sm">Guardar</button>
                 <?php if (!empty($invocador['apodo'])): ?>
-                <button type="submit" name="apodo" value="" class="btn btn-sm" style="color:var(--text-muted);background:transparent;border:1px solid var(--border)">Quitar apodo</button>
+                <button type="submit" name="apodo" value=""
+                        class="btn btn-sm"
+                        style="color:var(--text-muted);background:transparent;border:1px solid var(--border)"
+                        onclick="return confirm('¿Quitar el apodo?')">
+                    <i class="fa-solid fa-pen-slash"></i> Quitar apodo
+                </button>
                 <?php endif; ?>
+                <script>
+                (function(){
+                    var inp = document.getElementById('apodo-input');
+                    var cnt = document.getElementById('apodo-count');
+                    if (!inp) return;
+                    inp.addEventListener('input', function(){
+                        var n = inp.value.length;
+                        cnt.textContent = n + '/50';
+                        cnt.style.color = n >= 45 ? 'var(--fire,#ff7a45)' : 'var(--text-muted)';
+                    });
+                })();
+                </script>
             </form>
             <?php endif; ?>
         </div>
