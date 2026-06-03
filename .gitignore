@@ -2,3 +2,5 @@ config/config.php
 cache/
 .claude/
 CLAUDE.md
+debug_*.php
+test.php
