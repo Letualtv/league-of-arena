@@ -3,6 +3,8 @@
 > Tracker de victorias para el modo **Arena** de League of Legends.  
 > Marca los campeones con los que has ganado, desbloquea logros, compite en el ranking y lleva el historial completo de tus partidas.
 
+**Si el proyecto te resulta útil, dale una ⭐ al repositorio — ayuda a que más gente lo encuentre.**
+
 > [!WARNING]
 > **La API de Riot no soporta Arena de forma fiable.**  
 > El historial de partidas de Arena tiene cobertura limitada e inconsistente en la API oficial — hay partidas que directamente no aparecen. Este proyecto es una **solución básica y manual** para llevar el registro mientras Riot se pone las pilas y se toma en serio el mejor modo de juego. Por eso existe la opción de **marcar campeones manualmente**: para compensar lo que la API no detecta.
@@ -416,6 +418,18 @@ Edita el bloque `if ($isProduction)` con los datos de tu hosting. Los archivos a
 4. Abre un Pull Request
 
 Ideas de mejoras bienvenidas: nuevos logros, soporte para más modos de juego, mejoras de UI, sistema de notificaciones, traducciones a otros idiomas, etc.
+
+---
+
+## Apóyalo
+
+Si League of Arena te ha sido útil:
+
+- ⭐ **Dale una estrella** al repositorio en GitHub — es gratis y ayuda mucho a que otros lo descubran.
+- 🔁 **Compártelo** con tu grupo de amigos de LoL o en comunidades de Arena.
+- 🐛 **Abre un issue** si encuentras un bug o tienes una idea de mejora.
+
+[![GitHub stars](https://img.shields.io/github/stars/Letualtv/league-of-arena?style=social)](https://github.com/Letualtv/league-of-arena)
 
 ---
 
