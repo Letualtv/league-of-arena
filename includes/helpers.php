@@ -68,6 +68,11 @@ function urlLogros(string $puuid, string $region): string
     return 'logros.php?puuid=' . urlencode($puuid) . '&region=' . urlencode($region);
 }
 
+function nombreDisplay(array $inv): string
+{
+    return !empty($inv['apodo']) ? $inv['apodo'] : $inv['game_name'];
+}
+
 function isAdmin(?array $invocador): bool
 {
     if (!$invocador) return false;

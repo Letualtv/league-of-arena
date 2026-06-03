@@ -72,6 +72,12 @@ runAlter($db,
     "campeones_ganados.campeon_clase"
 );
 
+// invocadores: apodo personalizado (distinto del Riot ID)
+runAlter($db,
+    "ALTER TABLE invocadores ADD COLUMN apodo VARCHAR(50) NULL DEFAULT NULL AFTER tag_line",
+    "invocadores.apodo"
+);
+
 echo "<h2>Resultado de la migración</h2>";
 foreach ($ok  as $msg) echo "<p style='color:green'>$msg</p>";
 foreach ($err as $msg) echo "<p style='color:red'>$msg</p>";

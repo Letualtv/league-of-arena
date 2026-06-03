@@ -215,6 +215,7 @@ Aplica los `ALTER TABLE` de forma segura (ignora columnas que ya existan). Colum
 - `invocadores.top_campeon` → campeón más jugado
 - `invocadores.titulo_activo` → título seleccionado por el jugador
 - `campeones_ganados.campeon_clase` → clase del campeón
+- `invocadores.apodo` → nombre personalizado del jugador (opcional)
 
 ---
 
@@ -232,6 +233,21 @@ Cualquier jugador puede buscar su nombre en la app y ver su perfil público. Par
 4. En visitas siguientes, introduces el PIN para iniciar sesión.
 
 > El PIN se guarda como hash bcrypt en la base de datos. No se puede recuperar si se olvida (habría que resetear el campo `pin_hash` en la BD directamente).
+
+---
+
+## Apodo personalizado
+
+Cada jugador que haya reclamado su cuenta puede establecer un **apodo** distinto a su Riot ID. Aparecerá en su perfil, en el ranking y en el feed de actividad.
+
+### Cómo cambiarlo
+
+1. Inicia sesión en tu perfil.
+2. Verás un campo **Apodo** bajo el selector de título.
+3. Escribe el nombre que quieras (máx. 50 caracteres) y pulsa **Guardar**.
+4. Para eliminarlo y volver a usar tu Riot ID, pulsa **Quitar apodo**.
+
+> Si un jugador tiene apodo, su Riot ID original se sigue mostrando en pequeño como referencia.
 
 ---
 
@@ -253,12 +269,21 @@ El jugador con ese Riot ID, una vez que ha **reclamado su cuenta** con PIN e ini
 - Crear logros nuevos con nombre, descripción, icono, tipo y objetivo.
 - Ver y gestionar los logros existentes.
 - Desbloquear logros manualmente para jugadores específicos.
+- **Resetear el PIN** de cualquier cuenta (el jugador puede volver a reclamarla).
+- **Borrar una cuenta** por completo (elimina partidas, campeones, logros e invocador).
 
 ### Crear logros para tu comunidad
 
 Si instalas esto para un grupo de amigos, **la persona que configure el servidor** (la que pone su nombre en `ADMIN_GAME_NAME`) puede crear logros personalizados para toda la comunidad: logros de lore, logros de parejas de campeones, logros graciosos, lo que quieras.
 
 El resto de jugadores solo necesitan reclamar su cuenta con PIN para que sus victorias y logros queden guardados.
+
+### Gestión de cuentas (admin)
+
+Desde el panel de administración, en la sección **Cuentas**, el admin ve la lista de todos los invocadores registrados con su estado de PIN:
+
+- Si un jugador olvidó su PIN o lo reclamó por error, el admin puede **resetear el PIN** (botón naranja). La cuenta queda libre para ser reclamada de nuevo.
+- Si hay una cuenta errónea, duplicada o de un troll, el admin puede **borrar la cuenta** (botón rojo). Se eliminan permanentemente todos sus datos: partidas, campeones ganados y logros desbloqueados.
 
 ---
 

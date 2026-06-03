@@ -24,6 +24,20 @@ if (!$invocador) {
     exit;
 }
 
+// Guardar apodo si el owner lo envía
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'set_apodo') {
+    if (!empty($_SESSION['auth_' . $puuid])) {
+        $apodo = trim($_POST['apodo'] ?? '');
+        $apodo = $apodo === '' ? null : mb_substr($apodo, 0, 50);
+        $db->prepare('UPDATE invocadores SET apodo = ? WHERE puuid = ?')->execute([$apodo, $puuid]);
+        // Refrescar datos
+        $inv->execute([$puuid]);
+        $invocador = $db->prepare('SELECT * FROM invocadores WHERE puuid = ?');
+        $invocador->execute([$puuid]);
+        $invocador = $invocador->fetch();
+    }
+}
+
 $lm        = new LogrosManager($db);
 $stats     = $lm->getEstadisticas($puuid);
 $lm->verificarYDesbloquear($puuid);
@@ -80,7 +94,7 @@ foreach (array_slice($recientes, 0, 5) as $c) {
 
 $esOwner      = !empty($_SESSION['auth_' . $puuid]);
 $reclamado    = !empty($invocador['pin_hash']);
-$pageTitle    = $invocador['game_name'] . '#' . $invocador['tag_line'] . ' — Leagueofarena';
+$pageTitle    = nombreDisplay($invocador) . ' — Leagueofarena';
 $navPuuid     = $puuid;
 $navRegion    = $region;
 $navInvocador = $invocador;
@@ -100,8 +114,12 @@ include __DIR__ . '/includes/header.php';
         >
         <div class="profile-info">
             <h1 class="profile-name">
-                <?= htmlspecialchars($invocador['game_name']) ?>
+                <?= htmlspecialchars(nombreDisplay($invocador)) ?>
+                <?php if (empty($invocador['apodo'])): ?>
                 <span class="tag">#<?= htmlspecialchars($invocador['tag_line']) ?></span>
+                <?php else: ?>
+                <span class="tag" style="font-size:.75em;opacity:.65"><?= htmlspecialchars($invocador['game_name']) ?>#<?= htmlspecialchars($invocador['tag_line']) ?></span>
+                <?php endif; ?>
             </h1>
             <?php if (!empty($invocador['titulo_activo'])): ?>
             <div class="titulo-activo">
@@ -156,6 +174,25 @@ include __DIR__ . '/includes/header.php';
                     <i class="fa-solid fa-check"></i> Guardado
                 </span>
             </div>
+            <?php endif; ?>
+            <?php if ($esOwner): ?>
+            <form method="post" action="<?= BASE_URL ?>perfil.php?puuid=<?= urlencode($puuid) ?>&region=<?= urlencode($region) ?>"
+                  style="margin-top:.75rem;padding:.75rem 1rem;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+                <input type="hidden" name="action" value="set_apodo">
+                <label style="color:var(--text-muted);font-size:.85rem;font-weight:600;white-space:nowrap;">
+                    <i class="fa-solid fa-pen"></i> Apodo
+                </label>
+                <input type="text" name="apodo" maxlength="50"
+                       placeholder="<?= htmlspecialchars($invocador['game_name']) ?>"
+                       value="<?= htmlspecialchars($invocador['apodo'] ?? '') ?>"
+                       style="flex:1;min-width:140px;background:var(--bg-card);color:var(--text-bright);
+                              border:1px solid var(--border);border-radius:6px;
+                              padding:.4rem .85rem;font-size:.9rem;">
+                <button type="submit" class="btn btn-outline btn-sm">Guardar</button>
+                <?php if (!empty($invocador['apodo'])): ?>
+                <button type="submit" name="apodo" value="" class="btn btn-sm" style="color:var(--text-muted);background:transparent;border:1px solid var(--border)">Quitar apodo</button>
+                <?php endif; ?>
+            </form>
             <?php endif; ?>
         </div>
     </div>

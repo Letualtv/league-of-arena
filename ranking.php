@@ -116,7 +116,7 @@ $puuidToName = array_column($jugadores, null, 'puuid');
 $feedMax = max(1, min(200, (int)getConfig($db, 'feed_max', FEED_MAX_DEFAULT)));
 try {
     $feedLogros = $db->query("
-        SELECT ld.desbloqueado_en, i.game_name, i.tag_line, i.puuid, i.region,
+        SELECT ld.desbloqueado_en, i.game_name, i.tag_line, i.apodo, i.puuid, i.region,
                i.titulo_activo,
                l.nombre AS logro_nombre, l.icono AS logro_icono, l.titulo AS logro_titulo
         FROM logros_desbloqueados ld
@@ -239,7 +239,7 @@ include __DIR__ . '/includes/header.php';
                     $posClass = match($pos) { 1 => 'pos-oro', 2 => 'pos-plata', 3 => 'pos-bronce', default => '' };
                     $claseEs  = LogrosManager::CLASES[$j['clase_favorita'] ?? ''] ?? '—';
                     $claseKey = strtolower($j['clase_favorita'] ?? '');
-                    $riotId   = $j['game_name'] . '#' . $j['tag_line'];
+                    $riotId   = nombreDisplay($j) . ' (' . $j['game_name'] . '#' . $j['tag_line'] . ')';
                 ?>
                 <tr class="ranking-row <?= $pos <= 3 ? 'ranking-row--top' : '' ?>">
                     <td class="ranking-pos <?= $posClass ?>">
@@ -253,8 +253,10 @@ include __DIR__ . '/includes/header.php';
                         >
                         <div>
                             <a href="<?= urlPerfil($j['puuid'], $j['region']) ?>" class="ranking-name">
-                                <?= htmlspecialchars($j['game_name']) ?>
+                                <?= htmlspecialchars(nombreDisplay($j)) ?>
+                                <?php if (empty($j['apodo'])): ?>
                                 <span class="tag">#<?= htmlspecialchars($j['tag_line']) ?></span>
+                                <?php endif; ?>
                             </a>
                             <?php if (!empty($j['titulo_activo'])): ?>
                             <div class="ranking-titulo-activo">
@@ -340,7 +342,7 @@ include __DIR__ . '/includes/header.php';
                          onerror="this.style.display='none'">
                     <span class="curiosidad-nombre"><?= htmlspecialchars($c['campeon_nombre']) ?></span>
                     <?php if ($owner): ?>
-                    <span class="text-muted" style="font-size:.8rem">solo <?= htmlspecialchars($owner['game_name']) ?></span>
+                    <span class="text-muted" style="font-size:.8rem">solo <?= htmlspecialchars(nombreDisplay($owner)) ?></span>
                     <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
@@ -363,7 +365,7 @@ include __DIR__ . '/includes/header.php';
                          onerror="this.style.display='none'">
                     <span class="curiosidad-nombre"><?= htmlspecialchars($c['campeon_nombre']) ?></span>
                     <?php if ($owner): ?>
-                    <span class="text-muted" style="font-size:.8rem"><?= htmlspecialchars($owner['game_name']) ?></span>
+                    <span class="text-muted" style="font-size:.8rem"><?= htmlspecialchars(nombreDisplay($owner)) ?></span>
                     <?php endif; ?>
                     <span class="text-muted" style="font-size:.75rem"><?= tiempoRelativo($c['fecha']) ?></span>
                 </div>
@@ -379,7 +381,7 @@ include __DIR__ . '/includes/header.php';
                 <?php foreach (LogrosManager::CLASES as $claseEn => $claseEs):
                     // Buscar quién tiene más de esta clase
                     $stmt = $db->prepare('
-                        SELECT i.game_name, COUNT(*) as n
+                        SELECT i.game_name, i.apodo, COUNT(*) as n
                         FROM campeones_ganados cg
                         JOIN invocadores i ON i.puuid = cg.puuid
                         WHERE cg.campeon_clase = ? AND i.pin_hash IS NOT NULL
@@ -391,7 +393,7 @@ include __DIR__ . '/includes/header.php';
                 <div class="curiosidad-row">
                     <span class="clase-badge clase-<?= strtolower($claseEn) ?>"><?= $claseEs ?></span>
                     <?php if ($rey): ?>
-                    <span class="curiosidad-nombre"><?= htmlspecialchars($rey['game_name']) ?></span>
+                    <span class="curiosidad-nombre"><?= htmlspecialchars(nombreDisplay($rey)) ?></span>
                     <span class="badge"><?= $rey['n'] ?></span>
                     <?php else: ?>
                     <span class="text-muted">nadie aún</span>
@@ -418,7 +420,7 @@ include __DIR__ . '/includes/header.php';
                 <div class="feed-body">
                     <div class="feed-texto">
                         <a href="<?= urlPerfil($f['puuid'], $f['region']) ?>" class="feed-nombre">
-                            <?= htmlspecialchars($f['game_name']) ?>
+                            <?= htmlspecialchars(nombreDisplay($f)) ?>
                         </a>
                         <span class="feed-accion">desbloqueó</span>
                         <strong class="feed-logro"><?= htmlspecialchars($f['logro_nombre']) ?></strong>
