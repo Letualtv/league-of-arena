@@ -156,8 +156,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'borra
     }
 }
 
+// ===== Procesar: resetear PIN de una cuenta =====
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reset_pin') {
+    $puuid = trim($_POST['puuid'] ?? '');
+    if ($puuid) {
+        $db->prepare('UPDATE invocadores SET pin_hash = NULL WHERE puuid = ?')->execute([$puuid]);
+        $msg = 'PIN reseteado. El jugador puede volver a reclamar su cuenta.';
+    }
+}
+
+// ===== Procesar: borrar cuenta completa =====
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'borrar_cuenta') {
+    $puuid = trim($_POST['puuid'] ?? '');
+    if ($puuid) {
+        $db->prepare('DELETE FROM logros_desbloqueados WHERE puuid = ?')->execute([$puuid]);
+        $db->prepare('DELETE FROM campeones_ganados    WHERE puuid = ?')->execute([$puuid]);
+        $db->prepare('DELETE FROM partidas_arena       WHERE puuid = ?')->execute([$puuid]);
+        $db->prepare('DELETE FROM invocadores          WHERE puuid = ?')->execute([$puuid]);
+        $msg = 'Cuenta eliminada completamente.';
+    }
+}
+
 // ===== Cargar logros existentes =====
 $logrosExistentes = $db->query('SELECT * FROM logros ORDER BY tipo, valor_objetivo')->fetchAll();
+
+// ===== Cargar invocadores registrados =====
+$invocadores = $db->query('SELECT * FROM invocadores ORDER BY game_name ASC')->fetchAll();
 
 $pageTitle   = 'Panel Admin — League of Arena';
 $navPuuid    = $adminInvocador['puuid'];
@@ -325,6 +349,83 @@ include __DIR__ . '/includes/header.php';
             </div>
         </div>
 
+    </div>
+
+    <!-- ===== Gestión de cuentas ===== -->
+    <div class="card" style="margin-top:2rem">
+        <h2 class="card-title">
+            <i class="fa-solid fa-users"></i>
+            Gestión de cuentas (<?= count($invocadores) ?>)
+        </h2>
+        <p class="text-muted" style="margin-bottom:1.25rem;font-size:.85rem">
+            <strong style="color:var(--fire)">Resetear PIN</strong> — el jugador puede volver a reclamar su cuenta con un PIN nuevo.
+            &nbsp;·&nbsp;
+            <strong style="color:var(--blood)">Eliminar cuenta</strong> — borra el invocador y todos sus datos (partidas, campeones, logros).
+        </p>
+
+        <?php if (empty($invocadores)): ?>
+        <p class="text-muted">No hay invocadores registrados aún.</p>
+        <?php else: ?>
+        <div style="display:flex;flex-direction:column;gap:.5rem">
+            <?php foreach ($invocadores as $inv):
+                $esSelf   = $inv['puuid'] === $adminInvocador['puuid'];
+                $reclamada = !empty($inv['pin_hash']);
+            ?>
+            <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem .85rem;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border)">
+
+                <!-- Icono -->
+                <img src="https://ddragon.leagueoflegends.com/cdn/<?= $version ?>/img/profileicon/<?= (int)$inv['icono_id'] ?>.png"
+                     style="width:36px;height:36px;border-radius:50%;border:2px solid var(--border);flex-shrink:0"
+                     onerror="this.style.display='none'">
+
+                <!-- Info -->
+                <div style="flex:1;min-width:0">
+                    <span style="font-weight:600;font-size:.9rem;color:var(--text-bright)">
+                        <?= htmlspecialchars($inv['game_name']) ?><span style="color:var(--text-muted);font-weight:400">#<?= htmlspecialchars($inv['tag_line']) ?></span>
+                    </span>
+                    <span class="badge badge-region" style="margin-left:.4rem"><?= htmlspecialchars($inv['region']) ?></span>
+                    <?php if ($esSelf): ?>
+                    <span class="badge" style="margin-left:.3rem;color:var(--gold);border-color:rgba(200,155,60,.4)">TÚ</span>
+                    <?php endif; ?>
+                    <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem">
+                        <?php if ($reclamada): ?>
+                        <i class="fa-solid fa-lock" style="color:#68e094"></i> Cuenta reclamada
+                        <?php else: ?>
+                        <i class="fa-solid fa-lock-open" style="color:var(--text-muted)"></i> Sin reclamar
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <?php if (!$esSelf): ?>
+                <div style="display:flex;gap:.4rem;flex-shrink:0">
+                    <?php if ($reclamada): ?>
+                    <form method="POST" onsubmit="return confirm('¿Resetear el PIN de <?= htmlspecialchars(addslashes($inv['game_name'])) ?>? Podrá poner uno nuevo.')">
+                        <input type="hidden" name="action" value="reset_pin">
+                        <input type="hidden" name="puuid" value="<?= htmlspecialchars($inv['puuid']) ?>">
+                        <button type="submit" class="btn btn-sm btn-outline" title="Resetear PIN"
+                                style="border-color:var(--fire);color:var(--fire)">
+                            <i class="fa-solid fa-key"></i> Reset PIN
+                        </button>
+                    </form>
+                    <?php endif; ?>
+                    <form method="POST" onsubmit="return confirm('¿ELIMINAR la cuenta de <?= htmlspecialchars(addslashes($inv['game_name'])) ?>? Se borrarán todas sus partidas, campeones y logros. Esta acción NO se puede deshacer.')">
+                        <input type="hidden" name="action" value="borrar_cuenta">
+                        <input type="hidden" name="puuid" value="<?= htmlspecialchars($inv['puuid']) ?>">
+                        <button type="submit" class="btn btn-sm" title="Eliminar cuenta"
+                                style="background:rgba(139,0,0,.2);border:1px solid rgba(139,0,0,.5);color:#ff8080">
+                            <i class="fa-solid fa-trash"></i> Eliminar
+                        </button>
+                    </form>
+                </div>
+                <?php else: ?>
+                <span style="font-size:.75rem;color:var(--text-muted);padding:.3rem .6rem">admin</span>
+                <?php endif; ?>
+
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- ===== Configuración del feed ===== -->
