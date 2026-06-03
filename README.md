@@ -3,6 +3,10 @@
 > Tracker de victorias para el modo **Arena** de League of Legends.  
 > Marca los campeones con los que has ganado, desbloquea logros, compite en el ranking y lleva el historial completo de tus partidas.
 
+> [!WARNING]
+> **La API de Riot no soporta Arena de forma fiable.**  
+> El historial de partidas de Arena tiene cobertura limitada e inconsistente en la API oficial — hay partidas que directamente no aparecen. Este proyecto es una **solución básica y manual** para llevar el registro mientras Riot se pone las pilas y se toma en serio el mejor modo de juego. Por eso existe la opción de **marcar campeones manualmente**: para compensar lo que la API no detecta.
+
 **Proyecto open source — úsalo, instálalo para tu comunidad, forkéalo y mejóralo.**
 
 Creado por [Antonio Pulido DEV](https://github.com/Letualtv)
@@ -149,6 +153,16 @@ http://localhost/Leagueofarena/
 La aplicación ya incluye pausas entre peticiones durante el sync para mantenerse dentro del límite.
 
 Si necesitas una key permanente, solicita una **Personal API Key** en el mismo portal (requiere formulario de solicitud a Riot).
+
+### Limitaciones de la API con Arena
+
+La Riot API no trata Arena como un modo de primera clase. Problemas conocidos:
+
+- Partidas recientes pueden no aparecer en el historial durante horas o directamente no aparecer nunca.
+- El endpoint de partidas por queue (`queue=1700`) a veces devuelve resultados incompletos.
+- No hay endpoint dedicado para stats de Arena (posición, rondas, dúo…); hay que parsear el JSON genérico de Match V5.
+
+**Por eso existe el marcado manual de campeones**: si la API no detecta una victoria, el jugador puede marcarla a mano desde la página de campeones. Es la solución práctica mientras Riot decide tomarse en serio el mejor modo de juego.
 
 ---
 
