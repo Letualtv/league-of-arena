@@ -219,6 +219,10 @@ class LogrosManager
 
     private function evaluar(array $logro, array $stats, ?array $inv): bool
     {
+        // Para tipo 'campeon', valor_objetivo ES el champion ID, no un umbral numérico
+        if ($logro['tipo'] === 'campeon') {
+            return in_array((int)$logro['valor_objetivo'], $stats['ids_ganados']);
+        }
         return $this->valorActual($logro, $stats, $inv) >= $logro['valor_objetivo'];
     }
 
