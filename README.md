@@ -37,6 +37,7 @@ Creado por [Antonio Pulido DEV](https://github.com/Letualtv)
 - [Base de datos](#base-de-datos)
 - [Migración](#migración)
 - [Sistema de PIN y cuentas](#sistema-de-pin-y-cuentas)
+- [Apodo personalizado](#apodo-personalizado)
 - [Panel de administración y logros](#panel-de-administración-y-logros)
 - [Recargar logros (fix\_logros)](#recargar-logros)
 - [Estructura del proyecto](#estructura-del-proyecto)
@@ -65,7 +66,7 @@ Creado por [Antonio Pulido DEV](https://github.com/Letualtv)
 ### 1. Clonar o descargar el proyecto
 
 ```bash
-git clone https://github.com/Letualtv/leagueofarena.git
+git clone https://github.com/Letualtv/league-of-arena.git
 ```
 
 O descarga el ZIP y descomprime en `C:\xampp\htdocs\Leagueofarena\`.
@@ -177,6 +178,7 @@ Caché de datos del jugador obtenidos de la API.
 |-------|-------------|
 | `puuid` | Identificador único de Riot (clave principal lógica) |
 | `game_name` / `tag_line` | Nombre y tag del Riot ID |
+| `apodo` | Nombre personalizado elegido por el jugador (opcional, máx. 50 chars) |
 | `region` | Región del jugador |
 | `icono_id` / `nivel` | Icono de perfil y nivel de cuenta |
 | `pin_hash` | Hash bcrypt del PIN de autenticación |
@@ -254,14 +256,18 @@ Cualquier jugador puede buscar su nombre en la app y ver su perfil público. Par
 
 Cada jugador que haya reclamado su cuenta puede establecer un **apodo** distinto a su Riot ID. Aparecerá en su perfil, en el ranking y en el feed de actividad.
 
-### Cómo cambiarlo
+### Cómo cambiarlo (jugador)
 
 1. Inicia sesión en tu perfil.
-2. Verás un campo **Apodo** bajo el selector de título.
-3. Escribe el nombre que quieras (máx. 50 caracteres) y pulsa **Guardar**.
-4. Para eliminarlo y volver a usar tu Riot ID, pulsa **Quitar apodo**.
+2. Verás un campo **Apodo** bajo el selector de título, con un contador de caracteres en tiempo real.
+3. Escribe el nombre que quieras (**máx. 50 caracteres**) y pulsa **Guardar**.
+4. Para eliminarlo y volver a usar tu Riot ID, pulsa **Quitar apodo** (pide confirmación).
 
-> Si un jugador tiene apodo, su Riot ID original se sigue mostrando en pequeño como referencia.
+> Si un jugador tiene apodo, su Riot ID original se sigue mostrando en pequeño como referencia en su perfil y en el ranking.
+
+### Gestión de apodos (admin)
+
+El administrador puede **quitar el apodo** de cualquier jugador desde el panel de administración → sección Cuentas. Aparece un botón gris **Quitar apodo** en la fila de cada jugador que tenga uno puesto.
 
 ---
 
@@ -280,11 +286,12 @@ El jugador con ese Riot ID, una vez que ha **reclamado su cuenta** con PIN e ini
 
 ### Qué puede hacer el administrador
 
-- Crear logros nuevos con nombre, descripción, icono, tipo y objetivo.
-- Ver y gestionar los logros existentes.
-- Desbloquear logros manualmente para jugadores específicos.
+- **Crear logros** personalizados con nombre, descripción, icono, tipo y objetivo — el formulario incluye una previsualización en vivo de cómo quedará el logro antes de crearlo.
+- Ver y **eliminar logros** existentes.
 - **Resetear el PIN** de cualquier cuenta (el jugador puede volver a reclamarla).
 - **Borrar una cuenta** por completo (elimina partidas, campeones, logros e invocador).
+- **Quitar el apodo** de cualquier jugador.
+- Configurar el número máximo de eventos en el feed de actividad del ranking.
 
 ### Crear logros para tu comunidad
 
@@ -314,10 +321,11 @@ http://localhost/Leagueofarena/fix_logros.php
 **Orden correcto al instalar desde cero:**
 
 ```
-1. database/schema.sql    →  crea tablas + logros básicos
-2. database/migrate.php   →  añade columnas nuevas
-3. fix_logros.php         →  carga el set completo de logros
+1. database/schema.sql    →  crea todas las tablas (schema actualizado, no necesita migrate)
+2. fix_logros.php         →  carga el set completo de logros (~95 logros)
 ```
+
+Si ya tienes la BD creada con un schema antiguo, ejecuta primero `database/migrate.php` para añadir las columnas que faltan sin perder datos.
 
 ---
 
