@@ -355,21 +355,9 @@ Edita el bloque `if ($isProduction)` con los datos de tu hosting. Los archivos a
 
 ## Cómo compartir con tu comunidad
 
-Algunas ideas para que más gente lo use:
-
-### Si lo instalas para un grupo de amigos
-
-1. **Sube la app a un hosting gratuito** como [InfinityFree](https://infinityfree.net) o [000webhost](https://www.000webhost.com) — ambos tienen PHP + MySQL y son gratis.
-2. **Comparte el enlace** en el grupo de Discord o WhatsApp con el mensaje: *"Entra, busca tu nombre y verás tus victorias en Arena. Si quieres marcar campeones, reclama tu cuenta con un PIN."*
-3. El primero de cada cuenta que pulse "Acceder" y ponga un PIN la reclama para sí.
-
-### Si quieres difundir el proyecto en la comunidad LoL
-
-- **Publica en Reddit** en [r/leagueoflegends](https://reddit.com/r/leagueoflegends) o [r/leagueoflegends_es](https://reddit.com/r/leagueoflegends_es) mostrando una captura del grid de campeones y el sistema de logros. Los posts de "hice esto para mi grupo de amigos" funcionan muy bien.
-- **Hilo en Twitter/X** con capturas del ranking, los logros de parejas de campeones y el grid. Etiqueta `#LeagueOfLegends` y `#Arena`.
-- **Comparte en Discord servers de LoL** en español — hay servidores con decenas de miles de miembros donde este tipo de herramientas tienen muy buena acogida.
-- **Muestra el código** — un repo limpio con un README bien documentado atrae contribuidores. Añade el topic `league-of-legends` en GitHub para aparecer en búsquedas.
-- **Vídeo corto** (TikTok / Reels / YouTube Shorts) de 30-60 segundos enseñando la app en uso: buscar un invocador, ver el grid de campeones, desbloquear un logro. Sin edición compleja, grabación de pantalla directa.
+1. **Sube la app a un hosting gratuito** como [InfinityFree](https://infinityfree.net) — tiene PHP + MySQL y es gratis.
+2. **Comparte el enlace** en tu grupo de Discord o WhatsApp: *"Entra, busca tu nombre y verás tus victorias en Arena. Si quieres marcar campeones, reclama tu cuenta con un PIN."*
+3. El primero de cada cuenta que pulse "Acceder" y establezca un PIN la reclama para sí.
 
 ---
 
