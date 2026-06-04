@@ -9,7 +9,7 @@ if ($isProduction) {
     define('DB_PASS', 'contraseña_bd');
 } else {
     define('BASE_URL', '/Leagueofarena/');
-    define('DB_HOST', 'localhost:3307');
+    define('DB_HOST', 'localhost:3306');
     define('DB_NAME', 'league_arena');
     define('DB_USER', 'root');
     define('DB_PASS', '');

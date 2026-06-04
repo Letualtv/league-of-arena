@@ -85,7 +85,9 @@ El archivo `config/config.php` viene con la plantilla lista. Solo tienes que abr
 - `ADMIN_GAME_NAME` y `ADMIN_TAG_LINE` → tu Riot ID (serás el admin del sitio)
 - El bloque `if ($isProduction)` → solo si vas a subirlo a un hosting (datos de tu BD remota)
 
-Para desarrollo local con XAMPP por defecto no hace falta tocar nada más: la rama `else` ya apunta a `localhost:3307`, BD `league_arena`, usuario `root` sin contraseña.
+Para desarrollo local con XAMPP por defecto no hace falta tocar nada más: la rama `else` ya apunta a `localhost:3306`, BD `league_arena`, usuario `root` sin contraseña.
+
+> **Nota sobre el puerto de MySQL:** `3306` es el puerto por defecto. Si tu MySQL escucha en otro (por ejemplo `3307` porque tienes varias instancias o cambiaste la config de XAMPP), ajusta `DB_HOST` a `localhost:TU_PUERTO`. Puedes verlo en el panel de XAMPP, en la fila de MySQL, columna *Port(s)*.
 
 ### 4. Crear la base de datos
 
