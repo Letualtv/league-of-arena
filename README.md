@@ -77,55 +77,15 @@ O descarga el ZIP y descomprime en `C:\xampp\htdocs\Leagueofarena\`.
 
 Inicia los módulos **Apache** y **MySQL** desde el panel de XAMPP.
 
-### 3. Crear el archivo de configuración
+### 3. Configurar credenciales
 
-El archivo `config/config.php` está excluido del repositorio (`.gitignore`) para proteger las credenciales. Créalo manualmente copiando esta plantilla:
+El archivo `config/config.php` viene con la plantilla lista. Solo tienes que abrirlo y editar:
 
-```php
-<?php
-$isProduction = ($_SERVER['HTTP_HOST'] ?? '') !== 'localhost';
+- `RIOT_API_KEY` → tu Development Key de [developer.riotgames.com](https://developer.riotgames.com)
+- `ADMIN_GAME_NAME` y `ADMIN_TAG_LINE` → tu Riot ID (serás el admin del sitio)
+- El bloque `if ($isProduction)` → solo si vas a subirlo a un hosting (datos de tu BD remota)
 
-if ($isProduction) {
-    define('BASE_URL', '/');
-    define('DB_HOST', 'tu-host-mysql');
-    define('DB_NAME', 'nombre_base_de_datos');
-    define('DB_USER', 'usuario_bd');
-    define('DB_PASS', 'contraseña_bd');
-} else {
-    define('BASE_URL', '/Leagueofarena/');
-    define('DB_HOST', 'localhost:3307');
-    define('DB_NAME', 'league_arena');
-    define('DB_USER', 'root');
-    define('DB_PASS', '');
-}
-
-// Obtén tu key en https://developer.riotgames.com (caduca cada 24h)
-define('RIOT_API_KEY', 'RGAPI-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX');
-
-define('REGIONS', [
-    'EUW'  => ['platform' => 'euw1',  'regional' => 'europe'],
-    'EUNE' => ['platform' => 'eun1',  'regional' => 'europe'],
-    'TR'   => ['platform' => 'tr1',   'regional' => 'europe'],
-    'RU'   => ['platform' => 'ru',    'regional' => 'europe'],
-    'NA'   => ['platform' => 'na1',   'regional' => 'americas'],
-    'BR'   => ['platform' => 'br1',   'regional' => 'americas'],
-    'LAN'  => ['platform' => 'la1',   'regional' => 'americas'],
-    'LAS'  => ['platform' => 'la2',   'regional' => 'americas'],
-    'KR'   => ['platform' => 'kr',    'regional' => 'asia'],
-    'JP'   => ['platform' => 'jp1',   'regional' => 'asia'],
-    'OCE'  => ['platform' => 'oc1',   'regional' => 'sea'],
-]);
-
-define('QUEUE_ARENA', 1700);
-define('DDRAGON_BASE', 'https://ddragon.leagueoflegends.com');
-define('MATCHES_PER_SYNC', 20);
-
-// Pon aquí tu propio Riot ID — será el administrador del sitio
-define('ADMIN_GAME_NAME', 'TuNombreAqui');
-define('ADMIN_TAG_LINE',  'EUW');
-
-define('FEED_MAX_DEFAULT', 10);
-```
+Para desarrollo local con XAMPP por defecto no hace falta tocar nada más: la rama `else` ya apunta a `localhost:3307`, BD `league_arena`, usuario `root` sin contraseña.
 
 ### 4. Crear la base de datos
 
@@ -166,6 +126,15 @@ La Riot API no trata Arena como un modo de primera clase. Problemas conocidos:
 - No hay endpoint dedicado para stats de Arena (posición, rondas, dúo…); hay que parsear el JSON genérico de Match V5.
 
 **Por eso existe el marcado manual de campeones**: si la API no detecta una victoria, el jugador puede marcarla a mano desde la página de campeones. Es la solución práctica mientras Riot decide tomarse en serio el mejor modo de juego.
+
+### Modo offline (API caducada)
+
+Cuando la Development Key caduca (cada 24h) la app **sigue siendo usable** para jugadores ya registrados:
+
+- La búsqueda de la página de inicio tiene fallback a base de datos: si la API falla, busca el Riot ID en `invocadores` y te lleva al perfil igual.
+- Todo lo que no requiere red sigue funcionando: ver perfil, ranking, logros, campeones, reclamar/iniciar sesión con PIN, marcar campeones manualmente.
+- Lo único que se bloquea es: registrar jugadores nuevos y sincronizar partidas nuevas con el botón **Actualizar**.
+- Data Dragon (imágenes de campeones e iconos) tiene caché de 24h con fallback a caché caducada, así que las imágenes tampoco se rompen.
 
 ---
 
@@ -336,7 +305,7 @@ Si ya tienes la BD creada con un schema antiguo, ejecuta primero `database/migra
 ```
 Leagueofarena/
 ├── config/
-│   ├── config.php          → API Key, credenciales BD, regiones (NO subir a Git)
+│   ├── config.php          → API Key, credenciales BD, regiones
 │   └── db.php              → Función getDB() para PDO
 ├── database/
 │   ├── schema.sql          → Crear BD desde cero

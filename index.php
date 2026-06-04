@@ -21,28 +21,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $gameName = trim($gameName);
         $tagLine  = trim($tagLine);
 
-        if (RIOT_API_KEY === 'RGAPI-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX') {
-            $error = 'Configura tu API Key de Riot en config/config.php';
-        } else {
+        $db          = getDB();
+        $apiDisponible = (RIOT_API_KEY !== 'RGAPI-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX');
+        $account       = null;
+        $apiFallida    = false;
+        $apiHttpCode   = 0;
+
+        if ($apiDisponible) {
             $api     = new RiotAPI($region);
             $account = $api->getAccountByRiotId($gameName, $tagLine);
-
             if (!$account) {
-                $error = 'No se encontró "' . htmlspecialchars($input) . '" en ' . $region . '.';
-            } else {
-                $puuid    = $account['puuid'];
-                $summoner = $api->getSummonerByPuuid($puuid);
-                $db       = getDB();
-                $inv      = getInvocadorOCrear($puuid, $gameName, $tagLine, $region, $db);
-
-                if ($summoner) {
-                    $db->prepare('UPDATE invocadores SET summoner_id = ?, icono_id = ?, nivel = ? WHERE puuid = ?')
-                       ->execute([$summoner['id'], $summoner['profileIconId'], $summoner['summonerLevel'], $puuid]);
-                }
-
-                header('Location: ' . urlPerfil($puuid, $region));
-                exit;
+                $apiFallida  = true;
+                $apiHttpCode = $api->lastHttpCode;
             }
+        }
+
+        if ($account) {
+            $puuid    = $account['puuid'];
+            $summoner = $api->getSummonerByPuuid($puuid);
+            $inv      = getInvocadorOCrear($puuid, $gameName, $tagLine, $region, $db);
+
+            if ($summoner) {
+                $db->prepare('UPDATE invocadores SET summoner_id = ?, icono_id = ?, nivel = ? WHERE puuid = ?')
+                   ->execute([$summoner['id'], $summoner['profileIconId'], $summoner['summonerLevel'], $puuid]);
+            }
+
+            header('Location: ' . urlPerfil($puuid, $region));
+            exit;
+        }
+
+        // Fallback: API no disponible o no encontró al jugador → buscar en BD por Riot ID
+        $stmt = $db->prepare('SELECT puuid FROM invocadores WHERE LOWER(game_name) = LOWER(?) AND LOWER(tag_line) = LOWER(?) AND region = ?');
+        $stmt->execute([$gameName, $tagLine, $region]);
+        $puuidLocal = $stmt->fetchColumn();
+
+        if ($puuidLocal) {
+            header('Location: ' . urlPerfil($puuidLocal, $region));
+            exit;
+        }
+
+        // No está en BD: distinguir entre API caída y jugador inexistente
+        if (!$apiDisponible) {
+            $error = 'La API Key de Riot no está configurada. Solo pueden entrar jugadores ya registrados.';
+        } elseif ($apiHttpCode === 401 || $apiHttpCode === 403) {
+            $error = 'La API de Riot no está disponible ahora mismo (key caducada). Si ya tenías cuenta, comprueba que escribes tu Riot ID exacto. No se pueden registrar nuevas cuentas hasta que se renueve la key.';
+        } else {
+            $error = 'No se encontró "' . htmlspecialchars($input) . '" en ' . $region . '.';
         }
     }
 }
