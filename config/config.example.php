@@ -36,7 +36,7 @@ define('REGIONS', [
 
 define('QUEUE_ARENAS', [1750]); // Arena temporada actual (2026)
 define('DDRAGON_BASE', 'https://ddragon.leagueoflegends.com');
-define('MATCHES_PER_SYNC', 20);
+define('MATCHES_PER_SYNC', 30); // máximo de partidas que se procesan por click en "Actualizar"
 
 // Administrador del sitio — pon aquí tu propio Riot ID
 define('ADMIN_GAME_NAME', 'TuNombreAqui');

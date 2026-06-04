@@ -171,6 +171,114 @@ class RiotAPI
         return $version;
     }
 
+    // Limpia las descripciones crudas que vienen de Riot:
+    //  - Elimina tags propietarios (<scaleHealth>, <keyword>, <spellName>, <rules>, etc.)
+    //    pero deja el contenido visible.
+    //  - Mantiene <br>, <b>, <i> y <em> para mantener el formato.
+    //  - Sustituye variables @VarName@ por «—» (Riot las resuelve a runtime con el augment concreto).
+    private static function limpiarDescripcionRiot(string $desc): string
+    {
+        if ($desc === '') return '';
+        // Eliminar emoji icons tipo "%i:goldCoins%"
+        $desc = preg_replace('/%i:[^%]+%/', '', $desc);
+        // Sustituir @VarName@ y @VarName*100@ por «—»
+        $desc = preg_replace('/@[A-Za-z][\w*\.\-]*@/', '<em>—</em>', $desc);
+        // Quitar tags propietarios pero mantener el texto interno
+        $desc = strip_tags($desc, '<br><b><i><em><strong>');
+        // Compactar espacios y múltiples <br>
+        $desc = preg_replace('#(\s*<br\s*/?>\s*){3,}#i', '<br><br>', $desc);
+        return trim($desc);
+    }
+
+    // Mapa de items de DDragon por ID (con caché de 24 horas)
+    // Devuelve: [itemId => ['name' => str, 'plaintext' => str, 'desc' => str_html]]
+    public static function getItems(): array
+    {
+        $version   = self::getDDragonVersion();
+        $cacheFile = self::ensureCacheDir() . '/items.json';
+        if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 86400)) {
+            return json_decode(file_get_contents($cacheFile), true) ?: [];
+        }
+        $url  = DDRAGON_BASE . "/cdn/{$version}/data/es_ES/item.json";
+        $raw  = @file_get_contents($url);
+        $data = $raw ? @json_decode($raw, true) : null;
+        if (!empty($data['data'])) {
+            $map = [];
+            foreach ($data['data'] as $id => $item) {
+                $map[(int)$id] = [
+                    'name'      => $item['name']        ?? '',
+                    'plaintext' => $item['plaintext']   ?? '',
+                    'desc'      => self::limpiarDescripcionRiot($item['description'] ?? ''),
+                ];
+            }
+            // Añadir ítems específicos de Arena que no están en DDragon estándar (prismáticos)
+            $arenaUrl = 'https://raw.communitydragon.org/latest/cdragon/arena/es_es.json';
+            $arenaRaw = @file_get_contents($arenaUrl);
+            $arena    = $arenaRaw ? @json_decode($arenaRaw, true) : null;
+            if (!empty($arena['items'])) {
+                foreach ($arena['items'] as $it) {
+                    $id = (int)($it['id'] ?? 0);
+                    if (!$id || isset($map[$id])) continue;
+                    $map[$id] = [
+                        'name'      => $it['name']        ?? "Item $id",
+                        'plaintext' => '',
+                        'desc'      => self::limpiarDescripcionRiot($it['description'] ?? $it['desc'] ?? ''),
+                    ];
+                }
+            }
+            file_put_contents($cacheFile, json_encode($map, JSON_UNESCAPED_UNICODE));
+            return $map;
+        }
+        if (file_exists($cacheFile)) {
+            return json_decode(file_get_contents($cacheFile), true) ?: [];
+        }
+        return [];
+    }
+
+    // Mapa de augments de Arena por ID (con caché de 24 horas)
+    // Devuelve: [augmentId => ['name' => str, 'icon' => url_absoluta]]
+    public static function getArenaAugments(): array
+    {
+        $cacheFile = self::ensureCacheDir() . '/arena_augments.json';
+        if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 86400)) {
+            return json_decode(file_get_contents($cacheFile), true) ?: [];
+        }
+        $url  = 'https://raw.communitydragon.org/latest/cdragon/arena/es_es.json';
+        $raw  = @file_get_contents($url);
+        $data = $raw ? @json_decode($raw, true) : null;
+        if (!empty($data['augments'])) {
+            // CDragon sirve los iconos de Arena bajo /game/, NO bajo /plugins/rcp-be-lol-game-data/...
+            $base = 'https://raw.communitydragon.org/latest/game';
+            $map  = [];
+            foreach ($data['augments'] as $aug) {
+                $id   = (int)($aug['id'] ?? 0);
+                $path = $aug['iconLarge'] ?? $aug['iconSmall'] ?? '';
+                if (!$id || !$path) continue;
+                // Traducción del path interno de Riot a URL de CommunityDragon (siempre lowercase y con / inicial)
+                $path = strtolower($path);
+                $path = preg_replace('#^/?lol-game-data/assets/#', '', $path);
+                $path = '/' . ltrim($path, '/');
+                $iconPrimary = $base . $path;
+                // Fallback: muchos iconos vienen con sufijo de temporada (".arena_2026_s2", ".arena_2026_s2_a2")
+                // que CDragon no siempre mirroriza. Generamos también la versión "base" sin sufijo.
+                $iconFallback = preg_replace('#\.arena_\d+_s\d+(_a\d+)?(?=\.png$)#', '', $iconPrimary);
+                if ($iconFallback === $iconPrimary) $iconFallback = '';
+                $map[$id] = [
+                    'name'     => $aug['name'] ?? '',
+                    'desc'     => self::limpiarDescripcionRiot($aug['desc'] ?? ''),
+                    'icon'     => $iconPrimary,
+                    'icon_alt' => $iconFallback,
+                ];
+            }
+            file_put_contents($cacheFile, json_encode($map, JSON_UNESCAPED_UNICODE));
+            return $map;
+        }
+        if (file_exists($cacheFile)) {
+            return json_decode(file_get_contents($cacheFile), true) ?: [];
+        }
+        return [];
+    }
+
     // Todos los campeones en español (con caché de 24 horas)
     public static function getChampions(): array
     {

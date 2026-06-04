@@ -142,6 +142,63 @@ class LogrosManager
 
         $stats['yordles'] = count(array_intersect($stats['ids_ganados'], self::YORDLES));
 
+        // ===== Estadísticas agregadas de partidas_arena =====
+        $stmt = $this->db->prepare('
+            SELECT
+                COUNT(*)                                       AS partidas_jugadas,
+                SUM(CASE WHEN posicion = 1 THEN 1 ELSE 0 END)  AS victorias_total,
+                SUM(CASE WHEN posicion <= 2 THEN 1 ELSE 0 END) AS top2_total,
+                SUM(CASE WHEN posicion <= 4 THEN 1 ELSE 0 END) AS top4_total,
+                COALESCE(SUM(kills), 0)                        AS kills_total,
+                COALESCE(SUM(asistencias), 0)                  AS asist_total,
+                COALESCE(SUM(muertes), 0)                      AS muertes_total,
+                COALESCE(SUM(duracion_segundos), 0)            AS duracion_total,
+                COALESCE(MAX(dano_total), 0)                   AS dano_max_partida,
+                COALESCE(MAX(kills), 0)                        AS kills_max_partida,
+                COUNT(DISTINCT campeon_id)                     AS campeones_distintos_jugados
+            FROM partidas_arena WHERE puuid = ?
+        ');
+        $stmt->execute([$puuid]);
+        $aren = $stmt->fetch() ?: [];
+        foreach ($aren as $k => $v) $stats[$k] = (int)$v;
+
+        // Mejor KDA en una partida individual
+        $stmt = $this->db->prepare('
+            SELECT (kills + asistencias) / GREATEST(muertes, 1) AS kda
+            FROM partidas_arena WHERE puuid = ? ORDER BY kda DESC LIMIT 1
+        ');
+        $stmt->execute([$puuid]);
+        $stats['kda_max_partida'] = (float)($stmt->fetchColumn() ?: 0);
+
+        // Racha más larga de victorias (placement=1 consecutivos en orden cronológico)
+        $stmt = $this->db->prepare('SELECT posicion FROM partidas_arena WHERE puuid = ? ORDER BY jugado_en ASC');
+        $stmt->execute([$puuid]);
+        $rachaMax = 0; $rachaCur = 0;
+        foreach ($stmt->fetchAll() as $row) {
+            if ((int)$row['posicion'] === 1) { $rachaCur++; $rachaMax = max($rachaMax, $rachaCur); }
+            else { $rachaCur = 0; }
+        }
+        $stats['racha_victorias_max'] = $rachaMax;
+
+        // Racha más larga de top 4 consecutivos
+        $stmt->execute([$puuid]);
+        $rachaT4Max = 0; $rachaT4 = 0;
+        foreach ($stmt->fetchAll() as $row) {
+            if ((int)$row['posicion'] <= 4) { $rachaT4++; $rachaT4Max = max($rachaT4Max, $rachaT4); }
+            else { $rachaT4 = 0; }
+        }
+        $stats['racha_top4_max'] = $rachaT4Max;
+
+        // Partidas en el mismo día (máximo de partidas en un solo día)
+        $stmt = $this->db->prepare('
+            SELECT DATE(jugado_en) AS dia, COUNT(*) AS n
+            FROM partidas_arena WHERE puuid = ?
+            GROUP BY DATE(jugado_en)
+            ORDER BY n DESC LIMIT 1
+        ');
+        $stmt->execute([$puuid]);
+        $stats['partidas_mismo_dia_max'] = (int)($stmt->fetchColumn() ?: 0);
+
         return $stats;
     }
 
@@ -234,6 +291,31 @@ class LogrosManager
 
         if ($tipo === 'total') return $stats['total'];
         if (isset(self::CLASES[$tipo])) return $stats['clase_' . $tipo] ?? 0;
+
+        // ===== Tipos basados en partidas_arena =====
+        return match ($tipo) {
+            'partidas_jugadas'      => $stats['partidas_jugadas']           ?? 0,
+            'victorias_total'       => $stats['victorias_total']            ?? 0,
+            'top2_total'            => $stats['top2_total']                 ?? 0,
+            'top4_total'            => $stats['top4_total']                 ?? 0,
+            'kills_total'           => $stats['kills_total']                ?? 0,
+            'dano_max_partida'      => $stats['dano_max_partida']           ?? 0,
+            'kills_max_partida'     => $stats['kills_max_partida']          ?? 0,
+            'kda_max_partida'       => (int)floor($stats['kda_max_partida'] ?? 0),
+            'racha_victorias'       => $stats['racha_victorias_max']        ?? 0,
+            'racha_top4'            => $stats['racha_top4_max']             ?? 0,
+            'partidas_mismo_dia'    => $stats['partidas_mismo_dia_max']     ?? 0,
+            'variedad_campeones'    => $stats['campeones_distintos_jugados'] ?? 0,
+            'horas_jugadas'         => (int)floor(($stats['duracion_total'] ?? 0) / 3600),
+            default                 => $this->valorActualLegacy($logro, $stats, $inv),
+        };
+    }
+
+    private function valorActualLegacy(array $logro, array $stats, ?array $inv): int
+    {
+        $tipo  = $logro['tipo'];
+        $clave = $logro['clave'];
+        $ids   = $stats['ids_ganados'];
 
         if ($tipo === 'campeon') {
             return in_array((int)$logro['valor_objetivo'], $ids) ? 1 : 0;

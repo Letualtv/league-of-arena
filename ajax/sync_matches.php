@@ -93,11 +93,17 @@ try {
         $stmt = $db->prepare("SELECT match_id FROM partidas_arena WHERE match_id IN ($placeholders)");
         $stmt->execute($matchIds);
         $existentes = array_column($stmt->fetchAll(), 'match_id');
-        $pendientes = array_diff($matchIds, $existentes);
+        $pendientes = array_values(array_diff($matchIds, $existentes));
 
-        $debug['existentes']       = array_values($existentes);
-        $debug['pendientes']       = array_values($pendientes);
-        $debug['primera_partida']  = null;
+        // Procesar máximo MATCHES_PER_SYNC por click para que el navegador no se cuelgue.
+        // Si quedan más, el usuario las trae con clicks sucesivos.
+        $pendientesTotales = count($pendientes);
+        $pendientes        = array_slice($pendientes, 0, MATCHES_PER_SYNC);
+
+        $debug['existentes']        = array_values($existentes);
+        $debug['pendientes_total']  = $pendientesTotales;
+        $debug['pendientes_lote']   = count($pendientes);
+        $debug['primera_partida']   = null;
 
         $insertPartida = $db->prepare('
             INSERT INTO partidas_arena
@@ -184,13 +190,20 @@ try {
     $debug['campeones_nuevos'] = $campeonesNuevos;
     @file_put_contents(__DIR__ . '/../cache/debug_sync.json', json_encode($debug, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
+    $restantes = max(0, ($debug['pendientes_total'] ?? 0) - $partidasNuevas);
+    $msg = 'Perfil actualizado';
+    if ($restantes > 0) {
+        $msg .= " — quedan $restantes partidas por sincronizar, pulsa Actualizar otra vez.";
+    }
+
     echo json_encode([
         'ok' => true,
-        'mensaje' => 'Perfil actualizado',
+        'mensaje' => $msg,
         'main' => $topCampeon,
         'partidas_nuevas' => $partidasNuevas,
         'campeones_nuevos' => $campeonesNuevos,
         'logros_nuevos' => count($logrosDesbloqueados),
+        'restantes' => $restantes,
     ]);
 
 } catch (Throwable $e) {

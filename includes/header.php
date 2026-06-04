@@ -10,6 +10,8 @@ $esAdmin = $esOwner && !empty($navInvocador) && isAdmin($navInvocador);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Leagueofarena') ?></title>
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>assets/img/og.png">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>assets/img/og.png">
     <meta name="description" content="Colecciona tus victorias en Arena de League of Legends. Rastrea tus campeones ganados, logros y compite con tus amigos.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="League of Arena">

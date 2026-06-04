@@ -428,26 +428,34 @@ include __DIR__ . '/includes/header.php';
                 $mins      = floor((int)$p['duracion_segundos'] / 60);
                 $segs      = (int)$p['duracion_segundos'] % 60;
             ?>
-            <div class="historial-row <?= $posClass ?>">
-                <div class="historial-pos"><?= $posLabel ?></div>
-                <img class="historial-champ"
-                     src="<?= championImgUrl($ddKey, $version) ?>"
-                     alt="<?= htmlspecialchars($p['campeon_nombre']) ?>"
-                     title="<?= htmlspecialchars($p['campeon_nombre']) ?>"
-                     onerror="this.style.display='none'">
-                <div class="historial-info">
-                    <div class="historial-champ-nombre"><?= htmlspecialchars($p['campeon_nombre']) ?></div>
-                    <div class="historial-meta text-muted">
-                        <?= tiempoRelativo($p['jugado_en']) ?> · <?= $mins ?>:<?= str_pad((string)$segs, 2, '0', STR_PAD_LEFT) ?>
+            <div class="historial-item <?= $posClass ?>" data-match-id="<?= htmlspecialchars($p['match_id']) ?>">
+                <div class="historial-row" role="button" tabindex="0">
+                    <div class="historial-pos"><?= $posLabel ?></div>
+                    <img class="historial-champ"
+                         src="<?= championImgUrl($ddKey, $version) ?>"
+                         alt="<?= htmlspecialchars($p['campeon_nombre']) ?>"
+                         title="<?= htmlspecialchars($p['campeon_nombre']) ?>"
+                         onerror="this.style.display='none'">
+                    <div class="historial-info">
+                        <div class="historial-champ-nombre"><?= htmlspecialchars($p['campeon_nombre']) ?></div>
+                        <div class="historial-meta text-muted">
+                            <?= tiempoRelativo($p['jugado_en']) ?> · <?= $mins ?>:<?= str_pad((string)$segs, 2, '0', STR_PAD_LEFT) ?>
+                        </div>
                     </div>
+                    <div class="historial-kda">
+                        <span class="kda-val"><?= (int)$p['kills'] ?>/<?= (int)$p['muertes'] ?>/<?= (int)$p['asistencias'] ?></span>
+                        <span class="kda-label text-muted">KDA</span>
+                    </div>
+                    <div class="historial-dano">
+                        <span class="dano-val"><?= number_format((int)$p['dano_total'], 0, ',', '.') ?></span>
+                        <span class="dano-label text-muted">daño</span>
+                    </div>
+                    <div class="historial-chevron"><i class="fa-solid fa-chevron-down"></i></div>
                 </div>
-                <div class="historial-kda">
-                    <span class="kda-val"><?= (int)$p['kills'] ?>/<?= (int)$p['muertes'] ?>/<?= (int)$p['asistencias'] ?></span>
-                    <span class="kda-label text-muted">KDA</span>
-                </div>
-                <div class="historial-dano">
-                    <span class="dano-val"><?= number_format((int)$p['dano_total'], 0, ',', '.') ?></span>
-                    <span class="dano-label text-muted">daño</span>
+                <div class="historial-detail" style="display:none">
+                    <div class="historial-detail-loading text-muted">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Cargando detalles…
+                    </div>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -484,33 +492,37 @@ include __DIR__ . '/includes/header.php';
     margin-top: .35rem;
 }
 .historial-list { display: flex; flex-direction: column; gap: .5rem; }
-.historial-row {
-    display: grid;
-    grid-template-columns: 48px 56px 1fr auto auto;
-    align-items: center;
-    gap: 1rem;
-    padding: .75rem 1rem;
+.historial-item {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-left: 4px solid var(--border);
     border-radius: 8px;
-    transition: transform .15s ease;
+    overflow: hidden;
 }
-.historial-row:hover { transform: translateX(2px); }
-.historial-row.pos-gold   { border-left-color: #f0c040; }
-.historial-row.pos-silver { border-left-color: #b8c5d6; }
-.historial-row.pos-bronze { border-left-color: #c97b3a; }
-.historial-row.pos-loss   { border-left-color: #555; opacity: .85; }
+.historial-item.pos-gold   { border-left-color: #f0c040; }
+.historial-item.pos-silver { border-left-color: #b8c5d6; }
+.historial-item.pos-bronze { border-left-color: #c97b3a; }
+.historial-item.pos-loss   { border-left-color: #555; }
+.historial-row {
+    display: grid;
+    grid-template-columns: 48px 56px 1fr auto auto 24px;
+    align-items: center;
+    gap: 1rem;
+    padding: .75rem 1rem;
+    cursor: pointer;
+    transition: background .15s ease;
+}
+.historial-row:hover { background: var(--bg-elevated); }
 .historial-pos {
     font-family: 'Cinzel', serif;
     font-size: 1.5rem;
     font-weight: 700;
     text-align: center;
 }
-.historial-row.pos-gold   .historial-pos { color: #f0c040; }
-.historial-row.pos-silver .historial-pos { color: #b8c5d6; }
-.historial-row.pos-bronze .historial-pos { color: #c97b3a; }
-.historial-row.pos-loss   .historial-pos { color: #888; }
+.historial-item.pos-gold   .historial-pos { color: #f0c040; }
+.historial-item.pos-silver .historial-pos { color: #b8c5d6; }
+.historial-item.pos-bronze .historial-pos { color: #c97b3a; }
+.historial-item.pos-loss   .historial-pos { color: #888; }
 .historial-champ {
     width: 48px; height: 48px;
     border-radius: 6px;
@@ -526,13 +538,274 @@ include __DIR__ . '/includes/header.php';
 }
 .kda-val, .dano-val { font-weight: 600; font-variant-numeric: tabular-nums; }
 .kda-label, .dano-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; }
+.historial-chevron {
+    color: var(--text-muted);
+    text-align: center;
+    transition: transform .25s ease;
+}
+.historial-item.expanded .historial-chevron { transform: rotate(180deg); color: var(--gold); }
+
+.historial-detail {
+    padding: 1rem 1.25rem 1.25rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-elevated);
+}
+.detail-meta {
+    display: flex; gap: 1.5rem; flex-wrap: wrap;
+    margin-bottom: 1rem;
+    font-size: .85rem; color: var(--text-muted);
+}
+.detail-meta strong { color: var(--text-bright); font-variant-numeric: tabular-nums; }
+
+.detail-section-title {
+    font-size: .8rem; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .05em;
+    font-weight: 600;
+    margin: 1rem 0 .5rem;
+}
+
+.detail-augments, .detail-items {
+    display: flex; gap: .4rem; flex-wrap: wrap;
+}
+.detail-augment, .detail-item {
+    width: 38px; height: 38px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    object-fit: cover;
+}
+.detail-tip { cursor: pointer; transition: transform .15s, border-color .15s; }
+.detail-tip:hover { transform: scale(1.08); border-color: var(--gold); }
+.detail-augment { border-color: #c89b3c; background: #1a1410; }
+.detail-augment.detail-augment-fallback {
+    display: inline-flex; align-items: center; justify-content: center;
+    text-align: center;
+    font-size: .55rem; line-height: 1.1;
+    color: #c89b3c; padding: 2px;
+    overflow: hidden;
+    font-family: 'Cinzel', serif;
+}
+.detail-augment.detail-augment-fallback::before {
+    content: attr(alt);
+    display: block;
+    word-break: break-word;
+}
+
+/* Tooltip flotante de items (al hover) */
+.item-tooltip {
+    position: fixed;
+    z-index: 10000;
+    max-width: 320px;
+    padding: .75rem .9rem;
+    background: rgba(15, 18, 30, 0.97);
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .12s ease;
+}
+.item-tooltip.visible { opacity: 1; }
+.item-tooltip-name {
+    margin: 0 0 .35rem; color: var(--gold);
+    font-family: 'Cinzel', serif; font-size: .95rem; font-weight: 700;
+}
+.item-tooltip-desc {
+    font-size: .8rem; color: var(--text-bright); line-height: 1.45;
+}
+.item-tooltip-desc br { display: block; margin: .15rem 0; content: ""; }
+
+.detail-equipos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: .75rem;
+}
+.detail-equipo {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .65rem;
+}
+.detail-equipo.es-mio { border-color: var(--gold); background: rgba(200,155,60,0.06); }
+.detail-equipo-header {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: .75rem; color: var(--text-muted);
+    margin-bottom: .5rem;
+    text-transform: uppercase; letter-spacing: .05em;
+}
+.detail-equipo-pos { color: var(--gold); font-weight: 700; }
+.detail-equipo-jugadores {
+    display: flex; flex-direction: column; gap: .35rem;
+}
+.detail-jugador {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .85rem;
+}
+.detail-jugador img {
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+.detail-jugador.es-yo { font-weight: 700; }
+.detail-jugador.es-yo img { border-color: var(--gold); }
+.detail-jugador-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-jugador-kda { font-size: .75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
 @media (max-width: 600px) {
-    .historial-row { grid-template-columns: 36px 40px 1fr auto; gap: .6rem; padding: .6rem .75rem; }
+    .historial-row { grid-template-columns: 36px 40px 1fr auto 20px; gap: .6rem; padding: .6rem .75rem; }
     .historial-pos { font-size: 1.2rem; }
     .historial-champ { width: 40px; height: 40px; }
     .historial-dano { display: none; }
 }
 </style>
+
+<script>
+(function() {
+    const REGION = <?= json_encode($region) ?>;
+    const PUUID  = <?= json_encode($puuid) ?>;
+    const VER    = <?= json_encode($version) ?>;
+    const DDBASE = 'https://ddragon.leagueoflegends.com';
+    const CDRAG  = 'https://raw.communitydragon.org/latest';
+
+    // Cache de DDragon key por championId (resolve nombre raro como Bel'Veth → Belveth)
+    const CHAMP_DDKEY_BY_ID = <?= json_encode($champKeyById, JSON_UNESCAPED_UNICODE) ?>;
+
+    function champImg(id, nombre) {
+        const key = CHAMP_DDKEY_BY_ID[id] || (nombre || '').replace(/[^a-zA-Z0-9]/g, '');
+        return `${DDBASE}/cdn/${VER}/img/champion/${key}.png`;
+    }
+    function itemImg(id) {
+        return `${DDBASE}/cdn/${VER}/img/item/${id}.png`;
+    }
+    // Los augments ya vienen con URL resuelta desde el backend (RiotAPI::getArenaAugments)
+
+    function render(d) {
+        if (!d.ok) {
+            return `<div class="text-muted" style="padding:.5rem 0">${d.error || 'No se pudieron cargar los detalles.'}</div>`;
+        }
+        const dm = Math.floor(d.duracion / 60);
+        const ds = String(d.duracion % 60).padStart(2, '0');
+        const fecha = new Date(d.jugado_en * 1000).toLocaleString('es-ES', { dateStyle:'short', timeStyle:'short' });
+
+        const augmentsHtml = d.mi_augments.length
+            ? d.mi_augments.map(a => {
+                const desc = (a.desc || '').replace(/"/g, '&quot;');
+                const alt  = (a.icon_alt || '').replace(/"/g, '&quot;');
+                // Si la primera URL falla, intenta la versión sin sufijo de temporada antes de mostrar fallback de texto
+                const onerr = alt
+                    ? `if(!this.dataset.tried){this.dataset.tried=1;this.src='${alt}';}else{this.classList.add('detail-augment-fallback');this.removeAttribute('src');this.setAttribute('alt',this.dataset.name);}`
+                    : `this.classList.add('detail-augment-fallback');this.removeAttribute('src');this.setAttribute('alt',this.dataset.name);`;
+                return `<img class="detail-augment detail-tip" src="${a.icon}" alt="${a.name}"
+                            data-name="${a.name}" data-desc="${desc}"
+                            onerror="${onerr}">`;
+            }).join('')
+            : '<span class="text-muted" style="font-size:.85rem">Sin augments registrados</span>';
+
+        const itemsHtml = d.mi_items.length
+            ? d.mi_items.map(it => {
+                const desc = (it.desc || '').replace(/"/g, '&quot;');
+                return `<img class="detail-item detail-tip" data-name="${it.name}" data-desc="${desc}" data-id="${it.id}"
+                            src="${itemImg(it.id)}" alt="${it.name}"
+                            onerror="this.style.display='none'">`;
+            }).join('')
+            : '<span class="text-muted" style="font-size:.85rem">Sin items</span>';
+
+        const equiposHtml = Object.entries(d.equipos).map(([subId, jugadores]) => {
+            const pos = jugadores[0]?.placement || '?';
+            const esMio = parseInt(subId) === d.mi_subteam;
+            const jugs = jugadores.map(j => `
+                <div class="detail-jugador ${j.es_yo ? 'es-yo' : ''}">
+                    <img src="${champImg(j.campeon_id, j.campeon)}" alt="${j.campeon}" onerror="this.style.display='none'">
+                    <span class="detail-jugador-nombre">${j.campeon}</span>
+                    <span class="detail-jugador-kda">${j.kills}/${j.deaths}/${j.assists}</span>
+                </div>`).join('');
+            return `
+                <div class="detail-equipo ${esMio ? 'es-mio' : ''}">
+                    <div class="detail-equipo-header">
+                        <span>Equipo ${subId}</span>
+                        <span class="detail-equipo-pos">#${pos}</span>
+                    </div>
+                    <div class="detail-equipo-jugadores">${jugs}</div>
+                </div>`;
+        }).join('');
+
+        return `
+            <div class="detail-meta">
+                <span><strong>${fecha}</strong></span>
+                <span>Duración: <strong>${dm}:${ds}</strong></span>
+                <span>Oro: <strong>${d.mi_oro.toLocaleString('es-ES')}</strong></span>
+            </div>
+            <div class="detail-section-title">Aumentos</div>
+            <div class="detail-augments">${augmentsHtml}</div>
+            <div class="detail-section-title">Tus items finales</div>
+            <div class="detail-items">${itemsHtml}</div>
+            <div class="detail-section-title">Equipos</div>
+            <div class="detail-equipos">${equiposHtml}</div>
+        `;
+    }
+
+    // Tooltip flotante para items
+    const tooltip = document.createElement('div');
+    tooltip.className = 'item-tooltip';
+    tooltip.innerHTML = '<h4 class="item-tooltip-name"></h4><div class="item-tooltip-desc"></div>';
+    document.body.appendChild(tooltip);
+    const tipName = tooltip.querySelector('.item-tooltip-name');
+    const tipDesc = tooltip.querySelector('.item-tooltip-desc');
+
+    function moveTooltip(e) {
+        const pad = 14;
+        let x = e.clientX + pad;
+        let y = e.clientY + pad;
+        const r = tooltip.getBoundingClientRect();
+        if (x + r.width  > window.innerWidth)  x = e.clientX - r.width  - pad;
+        if (y + r.height > window.innerHeight) y = e.clientY - r.height - pad;
+        tooltip.style.left = x + 'px';
+        tooltip.style.top  = y + 'px';
+    }
+
+    document.addEventListener('mouseover', e => {
+        const img = e.target.closest('.detail-tip');
+        if (!img) return;
+        tipName.textContent = img.dataset.name;
+        const desc = (img.dataset.desc || '').replace(/&quot;/g, '"');
+        tipDesc.innerHTML = desc || '<em>Sin descripción</em>';
+        tooltip.classList.add('visible');
+        moveTooltip(e);
+    });
+    document.addEventListener('mousemove', e => {
+        if (tooltip.classList.contains('visible') && e.target.closest('.detail-tip')) {
+            moveTooltip(e);
+        }
+    });
+    document.addEventListener('mouseout', e => {
+        if (e.target.closest('.detail-tip')) {
+            tooltip.classList.remove('visible');
+        }
+    });
+
+    document.querySelectorAll('.historial-item').forEach(item => {
+        const matchId = item.dataset.matchId;
+        const row     = item.querySelector('.historial-row');
+        const detail  = item.querySelector('.historial-detail');
+        let loaded = false;
+
+        const toggle = () => {
+            const open = item.classList.toggle('expanded');
+            detail.style.display = open ? 'block' : 'none';
+            if (open && !loaded) {
+                loaded = true;
+                fetch(`${BASE_URL}ajax/match_detail.php?match_id=${encodeURIComponent(matchId)}&region=${REGION}&puuid=${encodeURIComponent(PUUID)}`)
+                    .then(r => r.json())
+                    .then(d => { detail.innerHTML = render(d); })
+                    .catch(err => { detail.innerHTML = `<div class="text-muted">Error: ${err.message}</div>`; loaded = false; });
+            }
+        };
+
+        row.addEventListener('click', toggle);
+        row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    });
+})();
+</script>
 
 <script>
 const selectTitulo = document.getElementById('select-titulo');

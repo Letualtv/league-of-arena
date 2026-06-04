@@ -36,6 +36,7 @@ Creado por [Antonio Pulido DEV](https://github.com/Letualtv)
 - [Tecnologías](#tecnologías)
 - [Instalación local (XAMPP)](#instalación-local-xampp)
 - [Conseguir la API Key de Riot](#conseguir-la-api-key-de-riot)
+- [Funcionalidades de Arena](#funcionalidades-de-arena)
 - [Base de datos](#base-de-datos)
 - [Migración](#migración)
 - [Sistema de PIN y cuentas](#sistema-de-pin-y-cuentas)
@@ -135,6 +136,66 @@ La Riot API no trata Arena como un modo de primera clase. Problemas conocidos:
 
 **Por eso existe el marcado manual de campeones**: si la API no detecta una victoria, el jugador puede marcarla a mano desde la página de campeones. Es la solución práctica mientras Riot decide tomarse en serio el mejor modo de juego.
 
+---
+
+## Funcionalidades de Arena
+
+### Sync paginado con límite por click
+
+El botón **Actualizar perfil** trae todas las partidas de Arena del usuario paginando contra Match-V5 (1750 actualmente). Para evitar que el navegador se quede bloqueado con 100+ partidas nuevas, **procesa hasta `MATCHES_PER_SYNC`** (30 por defecto) por click. Si quedan más, el JSON de respuesta lo indica:
+
+```json
+{ "ok": true, "partidas_nuevas": 30, "campeones_nuevos": 4, "restantes": 47, "mensaje": "Perfil actualizado — quedan 47 partidas..." }
+```
+
+El usuario pulsa otra vez para procesar el siguiente lote.
+
+### Estadísticas agregadas en el perfil
+
+Card de 8 métricas calculadas en directo desde `partidas_arena`:
+
+- Partidas jugadas, victorias (#1) con %, top 2 con %, top 4 con %.
+- Posición media, KDA medio, daño medio, duración media.
+
+### Historial expandible con lazy-load
+
+Las últimas 15 partidas en cards estilo opgg/dpm. Cada fila es desplegable:
+
+- **Click** → fetch a `ajax/match_detail.php?match_id=X` → caché permanente en `cache/matches/{matchId}.json` (las partidas terminadas no cambian).
+- Muestra: fecha exacta, duración, oro ganado, los 4-6 **augments** con icono y tooltip de descripción, los **items finales** con tooltip de stats/pasivas, los **4 equipos** con campeones, KDA por jugador y placement, **destacado tu equipo en oro**.
+
+### Modal de stats por campeón
+
+Click en cualquier campeón del grid de `campeones.php` → popup centrado con tus stats en Arena con ese campeón:
+
+- 8 cards de estadísticas: partidas, victorias + WR%, top 4 + %, posición media, KDA medio, daño medio, duración media, mejor placement.
+- Gráfico de barras con distribución de posiciones (1º-8º con colores oro/plata/bronce).
+- Empty state si nunca lo has jugado.
+
+### Ranking adaptado a Arena
+
+Las columnas **Elo** y **Main** han pasado a métricas específicas del modo:
+
+- **Pos. media**: promedio de placement en todas las partidas (más bajo = mejor) + número de partidas.
+- **Main Arena**: campeón más jugado (cuenta apariciones, no solo victorias) con tooltip que muestra cuántas partidas.
+
+### Tooltips de items y augments
+
+Pasando el ratón por un item o augment del historial expandido aparece un tooltip flotante que sigue al cursor, con el nombre en oro y la descripción limpia (sin tags propietarios de Riot ni variables `@VarName@` sin resolver). Iconos de items vienen de Data Dragon, los de augments de **CommunityDragon** (`raw.communitydragon.org/latest/game/...`), con doble fallback: si la versión `.arena_2026_s2.png` no existe, intenta la base sin sufijo; si tampoco, muestra el nombre dentro de un cuadro dorado.
+
+### Caches (en `cache/`)
+
+| Archivo | Contenido | TTL |
+|---|---|---|
+| `ddragon_version.txt` | Última versión del juego | 1h |
+| `champions.json` | Datos de campeones DDragon | 24h |
+| `items.json` | Items DDragon + items prismáticos de CDragon | 24h |
+| `arena_augments.json` | Mapa de augments de Arena con icono + descripción limpia | 24h |
+| `matches/{matchId}.json` | Detalle crudo de una partida | **Permanente** |
+| `debug_sync.json` | Última ejecución del sync (info diagnóstica) | — |
+
+---
+
 ### Modo offline (API caducada)
 
 Cuando la Development Key caduca (cada 24h) la app **sigue siendo usable** para jugadores ya registrados:
@@ -165,7 +226,7 @@ Caché de datos del jugador obtenidos de la API.
 | `titulo_activo` | Título desbloqueado y seleccionado por el jugador |
 
 ### `partidas_arena`
-Una fila por partida por jugador. Alimenta el historial y las estadísticas agregadas del perfil (partidas jugadas, winrate, % top 2/4, KDA medio, daño medio, duración media).
+Una fila por partida por jugador. Es la **base de todo lo nuevo** del proyecto: alimenta el historial expandible por partida, las estadísticas agregadas del perfil, el modal de stats por campeón en `campeones.php`, y el ranking (posición media + main Arena).
 
 | Campo | Descripción |
 |-------|-------------|
@@ -338,8 +399,10 @@ Leagueofarena/
 │   ├── header.php          → <head>, header sticky, menú responsive
 │   └── footer.php          → Footer + script app.js
 ├── ajax/
-│   ├── sync_matches.php    → Fetch de partidas desde Riot API → BD
-│   ├── toggle_campeon.php  → Marcar/desmarcar campeón manualmente
+│   ├── sync_matches.php    → Fetch paginado de partidas Riot API → BD + sync de campeones ganados + logros
+│   ├── match_detail.php    → Detalle de una partida (cache permanente, augments + items)
+│   ├── campeon_stats.php   → Stats agregadas de un campeón concreto en partidas_arena
+│   ├── toggle_campeon.php  → (legado) Marcar/desmarcar campeón manualmente
 │   └── logout.php          → Cierre de sesión
 ├── assets/
 │   ├── css/style.css       → Tema oscuro completo + responsive
@@ -364,12 +427,19 @@ index.php
   → redirige a perfil.php
 
 perfil.php
-  → Lee stats agregadas + historial desde BD
+  → Lee stats agregadas + historial + logros recientes desde BD
   → Botón "Actualizar" → ajax/sync_matches.php
-      → Riot API: TODAS las partidas paginando (queues en QUEUE_ARENAS)
-      → Guarda en partidas_arena
-      → Si posicion=1 → actualiza campeones_ganados
+      → Riot API: pagina TODOS los IDs de Arena (queues en QUEUE_ARENAS)
+      → Procesa hasta MATCHES_PER_SYNC pendientes por click
+      → Guarda en partidas_arena, si posicion=1 actualiza campeones_ganados
       → LogrosManager::verificarYDesbloquear()
+  → Click en fila del historial → ajax/match_detail.php (cache permanente)
+      → Augments + items con tooltip al hover, equipos con campeones
+
+campeones.php
+  → Click en campeón → ajax/campeon_stats.php
+      → Modal con métricas individuales del campeón en Arena
+      → Gráfico de distribución de posiciones (1º-8º)
 
 campeones.php
   → Data Dragon: todos los campeones (caché 24h en cache/)

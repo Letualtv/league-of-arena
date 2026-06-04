@@ -67,6 +67,26 @@ foreach ($invocadores as $inv) {
     $stmt2->execute([$inv['puuid']]);
     $stats['recientes'] = array_column($stmt2->fetchAll(), 'campeon_nombre');
 
+    // Posición media en Arena (más bajo = mejor)
+    $stmt2 = $db->prepare('SELECT AVG(posicion) AS pos_media, COUNT(*) AS partidas FROM partidas_arena WHERE puuid = ?');
+    $stmt2->execute([$inv['puuid']]);
+    $rowPos = $stmt2->fetch();
+    $stats['arena_pos_media'] = $rowPos && $rowPos['partidas'] > 0 ? (float)$rowPos['pos_media'] : null;
+    $stats['arena_partidas']  = $rowPos ? (int)$rowPos['partidas'] : 0;
+
+    // Main de Arena: campeón más jugado en partidas_arena
+    $stmt2 = $db->prepare('
+        SELECT campeon_id, campeon_nombre, COUNT(*) AS veces
+        FROM partidas_arena WHERE puuid = ?
+        GROUP BY campeon_id, campeon_nombre
+        ORDER BY veces DESC LIMIT 1
+    ');
+    $stmt2->execute([$inv['puuid']]);
+    $mainArena = $stmt2->fetch();
+    $stats['arena_main_nombre'] = $mainArena['campeon_nombre'] ?? null;
+    $stats['arena_main_id']     = $mainArena ? (int)$mainArena['campeon_id'] : null;
+    $stats['arena_main_veces']  = $mainArena ? (int)$mainArena['veces'] : 0;
+
     $jugadores[] = array_merge($inv, $stats);
 }
 
@@ -77,7 +97,7 @@ usort($jugadores, fn($a, $b) => $b['total'] <=> $a['total']);
 
 // Primero en marcar cada campeón (el más rápido)
 $stmt = $db->query('
-    SELECT campeon_nombre, puuid, MIN(primera_victoria) as fecha
+    SELECT campeon_nombre, MIN(campeon_id) AS campeon_id, puuid, MIN(primera_victoria) as fecha
     FROM campeones_ganados
     WHERE primera_victoria IS NOT NULL
     GROUP BY campeon_nombre
@@ -88,7 +108,7 @@ $primerosEnMarcar = $stmt->fetchAll();
 
 // Campeón más popular (el que más gente ha ganado)
 $stmt = $db->query('
-    SELECT campeon_nombre, COUNT(DISTINCT puuid) as jugadores
+    SELECT campeon_nombre, MIN(campeon_id) AS campeon_id, COUNT(DISTINCT puuid) as jugadores
     FROM campeones_ganados
     GROUP BY campeon_nombre
     ORDER BY jugadores DESC
@@ -98,7 +118,7 @@ $campeonesMasPopulares = $stmt->fetchAll();
 
 // Campeón más exclusivo (solo 1 persona lo tiene)
 $stmt = $db->query('
-    SELECT campeon_nombre, puuid
+    SELECT campeon_nombre, campeon_id, puuid
     FROM campeones_ganados
     WHERE campeon_id IN (
         SELECT campeon_id FROM campeones_ganados
@@ -228,8 +248,8 @@ include __DIR__ . '/includes/header.php';
                     <th>Titulo</th>
                     <th>Campeones</th>
                     <th>Clase fav.</th>
-                    <th>Elo</th>
-                    <th>Main</th>
+                    <th title="Posición media en partidas de Arena (más bajo = mejor)">Pos. media</th>
+                    <th>Main Arena</th>
                     <th>Logros</th>
                 </tr>
             </thead>
@@ -283,16 +303,27 @@ include __DIR__ . '/includes/header.php';
                         <span class="text-muted">—</span>
                         <?php endif; ?>
                     </td>
-                    <td><?= rankBadge(bestRank($j['ranked_solo'] ?? null, $j['ranked_flex'] ?? null)) ?></td>
+                    <td class="ranking-arena-pos">
+                        <?php if ($j['arena_pos_media'] !== null): ?>
+                            <span class="text-gold" style="font-size:1.1rem;font-weight:700">
+                                <?= number_format($j['arena_pos_media'], 2, ',', '.') ?>
+                            </span>
+                            <div class="text-muted" style="font-size:.7rem"><?= $j['arena_partidas'] ?> partidas</div>
+                        <?php else: ?>
+                            <span class="text-muted">—</span>
+                        <?php endif; ?>
+                    </td>
                     <td class="ranking-main">
-                        <?php if ($j['top_campeon']): ?>
+                        <?php if ($j['arena_main_nombre']):
+                            $mainKey = resolverDDKey($champKeyById, $champKeyByName, $todosChamps, (int)$j['arena_main_id'], $j['arena_main_nombre']);
+                        ?>
                         <img
-                            src="<?= championImgUrl($j['top_campeon'], $version) ?>"
+                            src="<?= championImgUrl($mainKey, $version) ?>"
                             class="ranking-main-img"
-                            title="Main: <?= htmlspecialchars($j['top_campeon']) ?>"
+                            title="Main Arena: <?= htmlspecialchars($j['arena_main_nombre']) ?> (<?= $j['arena_main_veces'] ?> partidas)"
                             onerror="this.style.display='none'"
                         >
-                        <span class="ranking-main-name"><?= htmlspecialchars($j['top_campeon']) ?></span>
+                        <span class="ranking-main-name"><?= htmlspecialchars($j['arena_main_nombre']) ?></span>
                         <?php else: ?>
                         <span class="text-muted">—</span>
                         <?php endif; ?>
