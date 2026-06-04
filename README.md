@@ -79,13 +79,19 @@ Inicia los módulos **Apache** y **MySQL** desde el panel de XAMPP.
 
 ### 3. Configurar credenciales
 
-El archivo `config/config.php` viene con la plantilla lista. Solo tienes que abrirlo y editar:
+El repo incluye `config/config.example.php` con todos los placeholders. **Cópialo a `config/config.php`** (que está en `.gitignore` para que tus credenciales nunca se suban a GitHub) y edita:
+
+```bash
+cp config/config.example.php config/config.php
+```
+
+Luego abre `config/config.php` y rellena:
 
 - `RIOT_API_KEY` → tu Development Key de [developer.riotgames.com](https://developer.riotgames.com)
 - `ADMIN_GAME_NAME` y `ADMIN_TAG_LINE` → tu Riot ID (serás el admin del sitio)
 - El bloque `if ($isProduction)` → solo si vas a subirlo a un hosting (datos de tu BD remota)
 
-Para desarrollo local con XAMPP por defecto no hace falta tocar nada más: la rama `else` ya apunta a `localhost:3306`, BD `league_arena`, usuario `root` sin contraseña.
+Para desarrollo local con XAMPP por defecto no hace falta tocar nada más: la rama `else` ya apunta a `localhost:3306`, BD `league_arena`, usuario `root` sin contraseña. La zona horaria por defecto es `Europe/Madrid` — ajústala en la primera línea de `config.php` si estás en otra región.
 
 > **Nota sobre el puerto de MySQL:** `3306` es el puerto por defecto. Si tu MySQL escucha en otro (por ejemplo `3307` porque tienes varias instancias o cambiaste la config de XAMPP), ajusta `DB_HOST` a `localhost:TU_PUERTO`. Puedes verlo en el panel de XAMPP, en la fila de MySQL, columna *Port(s)*.
 
@@ -123,8 +129,8 @@ Si necesitas una key permanente, solicita una **Personal API Key** en el mismo p
 
 La Riot API no trata Arena como un modo de primera clase. Problemas conocidos:
 
-- Partidas recientes pueden no aparecer en el historial durante horas o directamente no aparecer nunca.
-- El endpoint de partidas por queue (`queue=1700`) a veces devuelve resultados incompletos.
+- Partidas recientes pueden tardar **varias horas** en aparecer en `match-v5` (las webs como OP.GG tienen Production Keys y polling propio, por eso parecen "más rápidas").
+- Riot **no documenta** todos los `queueId` de Arena en `queues.json`. Los IDs activos son **1700** (Arena original 2023), **1710** (relanzamiento 2024) y **1750** (temporada actual 2026, `gameMode: CHERRY`). La app filtra por los que estén en `QUEUE_ARENAS` en `config/config.php` — por defecto solo `1750`.
 - No hay endpoint dedicado para stats de Arena (posición, rondas, dúo…); hay que parsear el JSON genérico de Match V5.
 
 **Por eso existe el marcado manual de campeones**: si la API no detecta una victoria, el jugador puede marcarla a mano desde la página de campeones. Es la solución práctica mientras Riot decide tomarse en serio el mejor modo de juego.
@@ -159,7 +165,7 @@ Caché de datos del jugador obtenidos de la API.
 | `titulo_activo` | Título desbloqueado y seleccionado por el jugador |
 
 ### `partidas_arena`
-Una fila por partida por jugador.
+Una fila por partida por jugador. Alimenta el historial y las estadísticas agregadas del perfil (partidas jugadas, winrate, % top 2/4, KDA medio, daño medio, duración media).
 
 | Campo | Descripción |
 |-------|-------------|
@@ -169,6 +175,8 @@ Una fila por partida por jugador.
 | `posicion` | Posición final: **1 = victoria**, 8 = último |
 | `kills / muertes / asistencias` | KDA |
 | `dano_total` | Daño total al final de la partida |
+| `duracion_segundos` | Duración de la partida |
+| `jugado_en` | Timestamp UTC (se muestra en zona horaria local) |
 
 ### `campeones_ganados`
 Campeones con los que el jugador ha conseguido un #1.
@@ -316,11 +324,13 @@ Si ya tienes la BD creada con un schema antiguo, ejecuta primero `database/migra
 ```
 Leagueofarena/
 ├── config/
-│   ├── config.php          → API Key, credenciales BD, regiones
+│   ├── config.example.php  → Plantilla con placeholders (la del repo)
+│   ├── config.php          → Tu copia local con credenciales reales (gitignored)
 │   └── db.php              → Función getDB() para PDO
 ├── database/
-│   ├── schema.sql          → Crear BD desde cero
-│   └── migrate.php         → Añadir columnas nuevas sin perder datos
+│   ├── schema.sql                       → Crear BD desde cero
+│   ├── migrate.php                      → Añadir columnas nuevas sin perder datos
+│   └── limpiar_temporada_anterior.sql   → Reset de partidas + campeones detectados por API
 ├── includes/
 │   ├── RiotAPI.php         → Wrapper de la Riot API y Data Dragon
 │   ├── LogrosManager.php   → Cálculo y desbloqueo de logros
@@ -354,9 +364,9 @@ index.php
   → redirige a perfil.php
 
 perfil.php
-  → Lee stats desde BD
+  → Lee stats agregadas + historial desde BD
   → Botón "Actualizar" → ajax/sync_matches.php
-      → Riot API: últimas 20 partidas (queue=1700)
+      → Riot API: TODAS las partidas paginando (queues en QUEUE_ARENAS)
       → Guarda en partidas_arena
       → Si posicion=1 → actualiza campeones_ganados
       → LogrosManager::verificarYDesbloquear()
@@ -379,6 +389,20 @@ $isProduction = ($_SERVER['HTTP_HOST'] ?? '') !== 'localhost';
 ```
 
 Edita el bloque `if ($isProduction)` con los datos de tu hosting. Los archivos a subir por FTP son todos los del repo excepto `cache/` (se genera sola).
+
+### Forzar HTTPS
+
+Si tu hosting tiene SSL (InfinityFree lo provisiona automáticamente con Let's Encrypt), crea un `.htaccess` en la raíz del proyecto para redirigir HTTP → HTTPS:
+
+```apache
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP_HOST} !^localhost [NC]
+RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+```
+
+Las dos excepciones para localhost evitan que en desarrollo XAMPP intente redirigirte a un HTTPS que no tiene certificado.
 
 ---
 

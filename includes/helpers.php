@@ -26,13 +26,16 @@ function posicionClass(int $pos): string
 
 function tiempoRelativo(string $timestamp): string
 {
-    $diff = time() - strtotime($timestamp);
+    // Los timestamps de la BD están en UTC; los interpretamos como tal
+    // y date() los muestra en la zona horaria configurada (Europe/Madrid).
+    $ts   = strtotime($timestamp . ' UTC');
+    $diff = time() - $ts;
     return match (true) {
         $diff < 60     => 'ahora',
         $diff < 3600   => round($diff / 60) . ' min',
         $diff < 86400  => round($diff / 3600) . 'h',
         $diff < 604800 => round($diff / 86400) . 'd',
-        default        => date('d/m/Y', strtotime($timestamp)),
+        default        => date('d/m/Y', $ts),
     };
 }
 

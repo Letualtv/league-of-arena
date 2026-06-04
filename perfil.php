@@ -48,6 +48,11 @@ $stmt = $db->prepare('SELECT * FROM campeones_ganados WHERE puuid = ? ORDER BY c
 $stmt->execute([$puuid]);
 $recientes = $stmt->fetchAll();
 
+// Total de campeones en el juego (para % progreso)
+$todosChamps = RiotAPI::getChampions();
+$totalChamps = count($todosChamps);
+$version     = RiotAPI::getDDragonVersion();
+
 // Mapas para resolver DDragon key correctamente
 $champKeyById   = [];
 $champKeyByName = [];
@@ -65,10 +70,34 @@ $stmt = $db->prepare('
 $stmt->execute([$puuid]);
 $logrosRecientes = $stmt->fetchAll();
 
-// Total de campeones en el juego (para % progreso)
-$todosChamps = RiotAPI::getChampions();
-$totalChamps = count($todosChamps);
-$version     = RiotAPI::getDDragonVersion();
+// Historial de partidas de Arena
+$stmt = $db->prepare('
+    SELECT * FROM partidas_arena
+    WHERE puuid = ?
+    ORDER BY jugado_en DESC
+    LIMIT 15
+');
+$stmt->execute([$puuid]);
+$historialPartidas = $stmt->fetchAll();
+
+// Estadísticas agregadas de partidas
+$stmt = $db->prepare('
+    SELECT
+        COUNT(*)                              AS jugadas,
+        SUM(CASE WHEN posicion = 1 THEN 1 ELSE 0 END) AS victorias,
+        SUM(CASE WHEN posicion <= 2 THEN 1 ELSE 0 END) AS top2,
+        SUM(CASE WHEN posicion <= 4 THEN 1 ELSE 0 END) AS top4,
+        AVG(posicion)                         AS pos_media,
+        SUM(kills)                            AS kills_tot,
+        SUM(muertes)                          AS muertes_tot,
+        SUM(asistencias)                      AS asist_tot,
+        AVG(dano_total)                       AS dano_medio,
+        AVG(duracion_segundos)                AS dur_media
+    FROM partidas_arena
+    WHERE puuid = ?
+');
+$stmt->execute([$puuid]);
+$arenaStats = $stmt->fetch() ?: [];
 
 // ---- Data para tarjeta de compartir ----
 try {
@@ -321,8 +350,189 @@ include __DIR__ . '/includes/header.php';
     </div>
     <?php endif; ?>
 
+    <!-- Estadísticas de Arena -->
+    <?php if (!empty($arenaStats) && (int)($arenaStats['jugadas'] ?? 0) > 0):
+        $jug   = (int)$arenaStats['jugadas'];
+        $vics  = (int)$arenaStats['victorias'];
+        $top2  = (int)$arenaStats['top2'];
+        $top4  = (int)$arenaStats['top4'];
+        $wr    = $jug > 0 ? round($vics * 100 / $jug, 1) : 0;
+        $top2r = $jug > 0 ? round($top2 * 100 / $jug, 1) : 0;
+        $top4r = $jug > 0 ? round($top4 * 100 / $jug, 1) : 0;
+        $kdaN  = max(1, (int)$arenaStats['muertes_tot']);
+        $kdaR  = round(((int)$arenaStats['kills_tot'] + (int)$arenaStats['asist_tot']) / $kdaN, 2);
+        $durMM = floor(((float)$arenaStats['dur_media']) / 60);
+        $durSS = (int)((float)$arenaStats['dur_media']) % 60;
+    ?>
+    <div class="card">
+        <h2 class="card-title">Estadísticas de Arena</h2>
+        <div class="arena-stats-grid">
+            <div class="arena-stat">
+                <div class="arena-stat-val text-gold"><?= $jug ?></div>
+                <div class="arena-stat-label">Partidas jugadas</div>
+            </div>
+            <div class="arena-stat">
+                <div class="arena-stat-val text-gold"><?= $vics ?></div>
+                <div class="arena-stat-label">Victorias (#1) · <?= $wr ?>%</div>
+            </div>
+            <div class="arena-stat">
+                <div class="arena-stat-val"><?= $top2 ?></div>
+                <div class="arena-stat-label">Top 2 · <?= $top2r ?>%</div>
+            </div>
+            <div class="arena-stat">
+                <div class="arena-stat-val"><?= $top4 ?></div>
+                <div class="arena-stat-label">Top 4 · <?= $top4r ?>%</div>
+            </div>
+            <div class="arena-stat">
+                <div class="arena-stat-val"><?= number_format((float)$arenaStats['pos_media'], 2, ',', '.') ?></div>
+                <div class="arena-stat-label">Posición media</div>
+            </div>
+            <div class="arena-stat">
+                <div class="arena-stat-val"><?= $kdaR ?></div>
+                <div class="arena-stat-label">KDA medio</div>
+            </div>
+            <div class="arena-stat">
+                <div class="arena-stat-val"><?= number_format((float)$arenaStats['dano_medio'], 0, ',', '.') ?></div>
+                <div class="arena-stat-label">Daño medio</div>
+            </div>
+            <div class="arena-stat">
+                <div class="arena-stat-val"><?= $durMM ?>:<?= str_pad((string)$durSS, 2, '0', STR_PAD_LEFT) ?></div>
+                <div class="arena-stat-label">Duración media</div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Historial de partidas de Arena -->
+    <?php if (!empty($historialPartidas)): ?>
+    <div class="card">
+        <h2 class="card-title">Historial de partidas <span style="font-size:.85rem;color:var(--text-muted);font-weight:400">(últimas <?= count($historialPartidas) ?>)</span></h2>
+        <div class="historial-list">
+            <?php foreach ($historialPartidas as $p):
+                $ddKey = $champKeyById[(int)$p['campeon_id']]
+                      ?? $champKeyByName[strtolower($p['campeon_nombre'])]
+                      ?? null;
+                if (!$ddKey) {
+                    $normalizado = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $p['campeon_nombre']));
+                    foreach ($todosChamps as $ch) {
+                        if (strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $ch['name'])) === $normalizado) {
+                            $ddKey = $ch['id'];
+                            break;
+                        }
+                    }
+                    $ddKey = $ddKey ?? preg_replace('/[^a-zA-Z0-9]/', '', $p['campeon_nombre']);
+                }
+                $pos       = (int)$p['posicion'];
+                $posClass  = $pos === 1 ? 'pos-gold' : ($pos <= 2 ? 'pos-silver' : ($pos <= 4 ? 'pos-bronze' : 'pos-loss'));
+                $posLabel  = $pos === 1 ? '1º' : $pos . 'º';
+                $mins      = floor((int)$p['duracion_segundos'] / 60);
+                $segs      = (int)$p['duracion_segundos'] % 60;
+            ?>
+            <div class="historial-row <?= $posClass ?>">
+                <div class="historial-pos"><?= $posLabel ?></div>
+                <img class="historial-champ"
+                     src="<?= championImgUrl($ddKey, $version) ?>"
+                     alt="<?= htmlspecialchars($p['campeon_nombre']) ?>"
+                     title="<?= htmlspecialchars($p['campeon_nombre']) ?>"
+                     onerror="this.style.display='none'">
+                <div class="historial-info">
+                    <div class="historial-champ-nombre"><?= htmlspecialchars($p['campeon_nombre']) ?></div>
+                    <div class="historial-meta text-muted">
+                        <?= tiempoRelativo($p['jugado_en']) ?> · <?= $mins ?>:<?= str_pad((string)$segs, 2, '0', STR_PAD_LEFT) ?>
+                    </div>
+                </div>
+                <div class="historial-kda">
+                    <span class="kda-val"><?= (int)$p['kills'] ?>/<?= (int)$p['muertes'] ?>/<?= (int)$p['asistencias'] ?></span>
+                    <span class="kda-label text-muted">KDA</span>
+                </div>
+                <div class="historial-dano">
+                    <span class="dano-val"><?= number_format((int)$p['dano_total'], 0, ',', '.') ?></span>
+                    <span class="dano-label text-muted">daño</span>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
 </div>
+
+<style>
+.arena-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+}
+.arena-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+.arena-stat-val {
+    font-family: 'Cinzel', serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.arena-stat-label {
+    font-size: .75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-top: .35rem;
+}
+.historial-list { display: flex; flex-direction: column; gap: .5rem; }
+.historial-row {
+    display: grid;
+    grid-template-columns: 48px 56px 1fr auto auto;
+    align-items: center;
+    gap: 1rem;
+    padding: .75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
+    border-radius: 8px;
+    transition: transform .15s ease;
+}
+.historial-row:hover { transform: translateX(2px); }
+.historial-row.pos-gold   { border-left-color: #f0c040; }
+.historial-row.pos-silver { border-left-color: #b8c5d6; }
+.historial-row.pos-bronze { border-left-color: #c97b3a; }
+.historial-row.pos-loss   { border-left-color: #555; opacity: .85; }
+.historial-pos {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+}
+.historial-row.pos-gold   .historial-pos { color: #f0c040; }
+.historial-row.pos-silver .historial-pos { color: #b8c5d6; }
+.historial-row.pos-bronze .historial-pos { color: #c97b3a; }
+.historial-row.pos-loss   .historial-pos { color: #888; }
+.historial-champ {
+    width: 48px; height: 48px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    object-fit: cover;
+}
+.historial-champ-nombre { font-weight: 600; }
+.historial-meta { font-size: .8rem; margin-top: .15rem; }
+.historial-kda, .historial-dano {
+    text-align: right;
+    display: flex; flex-direction: column;
+    min-width: 70px;
+}
+.kda-val, .dano-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.kda-label, .dano-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; }
+@media (max-width: 600px) {
+    .historial-row { grid-template-columns: 36px 40px 1fr auto; gap: .6rem; padding: .6rem .75rem; }
+    .historial-pos { font-size: 1.2rem; }
+    .historial-champ { width: 40px; height: 40px; }
+    .historial-dano { display: none; }
+}
+</style>
 
 <script>
 const selectTitulo = document.getElementById('select-titulo');

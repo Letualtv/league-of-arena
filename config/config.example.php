@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('Europe/Madrid');
+
 $isProduction = ($_SERVER['HTTP_HOST'] ?? '') !== 'localhost';
 
 if ($isProduction) {
@@ -32,7 +34,7 @@ define('REGIONS', [
     'OCE'  => ['platform' => 'oc1',  'regional' => 'sea'],
 ]);
 
-define('QUEUE_ARENA', 1700);
+define('QUEUE_ARENAS', [1750]); // Arena temporada actual (2026)
 define('DDRAGON_BASE', 'https://ddragon.leagueoflegends.com');
 define('MATCHES_PER_SYNC', 20);
 

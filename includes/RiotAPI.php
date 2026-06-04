@@ -60,18 +60,51 @@ class RiotAPI
         return $this->get($url);
     }
 
-    // IDs de partidas de Arena del jugador
+    // IDs de partidas de Arena del jugador (recorre todos los queues definidos en QUEUE_ARENAS)
     public function getArenaMatchIds(string $puuid, int $start = 0, int $count = 20): array
     {
-        $url = sprintf(
-            'https://%s.api.riotgames.com/lol/match/v5/matches/by-puuid/%s/ids?queue=%d&start=%d&count=%d',
-            $this->regional,
-            rawurlencode($puuid),
-            QUEUE_ARENA,
-            $start,
-            $count
-        );
-        return $this->get($url) ?? [];
+        $ids = [];
+        foreach (QUEUE_ARENAS as $queue) {
+            $url = sprintf(
+                'https://%s.api.riotgames.com/lol/match/v5/matches/by-puuid/%s/ids?queue=%d&start=%d&count=%d',
+                $this->regional,
+                rawurlencode($puuid),
+                $queue,
+                $start,
+                $count
+            );
+            $batch = $this->get($url) ?? [];
+            $ids = array_merge($ids, $batch);
+            usleep(60000); // 60ms entre llamadas (Development Key: 20 req/s)
+        }
+        return array_values(array_unique($ids));
+    }
+
+    // IDs de TODAS las partidas de Arena del jugador (paginando)
+    public function getAllArenaMatchIds(string $puuid): array
+    {
+        $ids       = [];
+        $batchSize = 100; // máximo permitido por Riot match-v5/ids
+        foreach (QUEUE_ARENAS as $queue) {
+            $start = 0;
+            while (true) {
+                $url = sprintf(
+                    'https://%s.api.riotgames.com/lol/match/v5/matches/by-puuid/%s/ids?queue=%d&start=%d&count=%d',
+                    $this->regional,
+                    rawurlencode($puuid),
+                    $queue,
+                    $start,
+                    $batchSize
+                );
+                $batch = $this->get($url) ?? [];
+                if (empty($batch)) break;
+                $ids = array_merge($ids, $batch);
+                if (count($batch) < $batchSize) break; // última página
+                $start += $batchSize;
+                usleep(60000);
+            }
+        }
+        return array_values(array_unique($ids));
     }
 
     // Detalle completo de una partida

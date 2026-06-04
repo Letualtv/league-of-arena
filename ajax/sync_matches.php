@@ -6,6 +6,7 @@ session_start();
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/RiotAPI.php';
+require_once __DIR__ . '/../includes/LogrosManager.php';
 
 try {
     $puuid  = $_POST['puuid']  ?? null;
@@ -68,11 +69,129 @@ try {
         }
     }
 
-    // 4. Actualizar BD
+    // 4. Actualizar perfil del invocador
     $db->prepare('UPDATE invocadores SET icono_id = ?, nivel = ?, top_campeon = ?, ranked_solo = ?, ranked_flex = ? WHERE puuid = ?')
        ->execute([$summoner['profileIconId'], $summoner['summonerLevel'], $topCampeon, $rankedSolo, $rankedFlex, $puuid]);
 
-    echo json_encode(['ok' => true, 'mensaje' => 'Perfil actualizado', 'main' => $topCampeon]);
+    // 5. Sincronizar partidas de Arena (todas las del queue actual, paginando)
+    $matchIds        = $api->getAllArenaMatchIds($puuid);
+    $partidasNuevas  = 0;
+    $campeonesNuevos = 0;
+
+    // Debug: vuelca info en cache/debug_sync.json
+    $debug = [
+        'fecha'        => date('c'),
+        'puuid'        => $puuid,
+        'queues'       => QUEUE_ARENAS,
+        'total_ids'    => count($matchIds),
+        'http_code'    => $api->lastHttpCode,
+    ];
+
+    if (!empty($matchIds)) {
+        // Filtrar match IDs ya guardados
+        $placeholders = implode(',', array_fill(0, count($matchIds), '?'));
+        $stmt = $db->prepare("SELECT match_id FROM partidas_arena WHERE match_id IN ($placeholders)");
+        $stmt->execute($matchIds);
+        $existentes = array_column($stmt->fetchAll(), 'match_id');
+        $pendientes = array_diff($matchIds, $existentes);
+
+        $debug['existentes']       = array_values($existentes);
+        $debug['pendientes']       = array_values($pendientes);
+        $debug['primera_partida']  = null;
+
+        $insertPartida = $db->prepare('
+            INSERT INTO partidas_arena
+                (match_id, puuid, campeon_id, campeon_nombre, posicion, kills, muertes, asistencias, dano_total, duracion_segundos, jugado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ');
+
+        $upsertGanado = $db->prepare('
+            INSERT INTO campeones_ganados (puuid, campeon_id, campeon_nombre, primera_victoria, ultima_victoria, marcado_manual)
+            VALUES (?, ?, ?, ?, ?, 0)
+            ON DUPLICATE KEY UPDATE
+                veces_ganado    = veces_ganado + 1,
+                ultima_victoria = VALUES(ultima_victoria)
+        ');
+
+        foreach ($pendientes as $matchId) {
+            $match = $api->getMatch($matchId);
+            usleep(60000);
+            if (!$match) continue;
+
+            // Encontrar al jugador en la partida
+            $participantes = $match['info']['participants'] ?? [];
+            $yo = null;
+            foreach ($participantes as $p) {
+                if (($p['puuid'] ?? '') === $puuid) { $yo = $p; break; }
+            }
+            if (!$yo) continue;
+
+            // Guarda la primera partida cruda para diagnóstico
+            if ($debug['primera_partida'] === null) {
+                $debug['primera_partida'] = [
+                    'match_id'         => $matchId,
+                    'queueId'          => $match['info']['queueId'] ?? null,
+                    'gameMode'         => $match['info']['gameMode'] ?? null,
+                    'placement'        => $yo['placement'] ?? null,
+                    'subteamPlacement' => $yo['subteamPlacement'] ?? null,
+                    'championName'     => $yo['championName'] ?? null,
+                    'campos_yo'        => array_keys($yo),
+                ];
+            }
+
+            $posicion = (int)($yo['placement'] ?? $yo['subteamPlacement'] ?? 0);
+            if ($posicion < 1 || $posicion > 8) continue;
+
+            // Guardamos en UTC para mantener coherencia con el dump original;
+            // el display convierte a Madrid vía tiempoRelativo().
+            $jugadoEn = gmdate('Y-m-d H:i:s', (int)(($match['info']['gameStartTimestamp'] ?? $match['info']['gameCreation'] ?? 0) / 1000));
+
+            $insertPartida->execute([
+                $matchId,
+                $puuid,
+                (int)($yo['championId'] ?? 0),
+                (string)($yo['championName'] ?? ''),
+                $posicion,
+                (int)($yo['kills'] ?? 0),
+                (int)($yo['deaths'] ?? 0),
+                (int)($yo['assists'] ?? 0),
+                (int)($yo['totalDamageDealtToChampions'] ?? 0),
+                (int)($match['info']['gameDuration'] ?? 0),
+                $jugadoEn,
+            ]);
+            $partidasNuevas++;
+
+            // Si quedó primero, se cuenta como campeón ganado
+            if ($posicion === 1) {
+                $upsertGanado->execute([
+                    $puuid,
+                    (int)($yo['championId'] ?? 0),
+                    (string)($yo['championName'] ?? ''),
+                    $jugadoEn,
+                    $jugadoEn,
+                ]);
+                $campeonesNuevos++;
+            }
+        }
+    }
+
+    // 6. Verificar logros tras la sync
+    $lm = new LogrosManager($db);
+    $logrosDesbloqueados = $lm->verificarYDesbloquear($puuid);
+
+    // Volcar debug
+    $debug['partidas_nuevas']  = $partidasNuevas;
+    $debug['campeones_nuevos'] = $campeonesNuevos;
+    @file_put_contents(__DIR__ . '/../cache/debug_sync.json', json_encode($debug, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+    echo json_encode([
+        'ok' => true,
+        'mensaje' => 'Perfil actualizado',
+        'main' => $topCampeon,
+        'partidas_nuevas' => $partidasNuevas,
+        'campeones_nuevos' => $campeonesNuevos,
+        'logros_nuevos' => count($logrosDesbloqueados),
+    ]);
 
 } catch (Throwable $e) {
     echo json_encode(['ok' => false, 'error' => 'Error: ' . $e->getMessage()]);
