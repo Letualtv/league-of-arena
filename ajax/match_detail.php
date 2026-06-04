@@ -98,13 +98,38 @@ try {
         (int)($yo['playerAugment6'] ?? 0),
     ], fn($a) => $a > 0);
     $augmentsMap = RiotAPI::getArenaAugments();
-    $augments = array_map(fn($id) => [
-        'id'       => $id,
-        'name'     => $augmentsMap[$id]['name']     ?? "Augment $id",
-        'desc'     => $augmentsMap[$id]['desc']     ?? '',
-        'icon'     => $augmentsMap[$id]['icon']     ?? '',
-        'icon_alt' => $augmentsMap[$id]['icon_alt'] ?? '',
-    ], array_values($augmentIds));
+    // Riot match-v5 devuelve IDs con offset por tier:
+    //   1xxx  → Gold (base = id - 1000)
+    //   2xxx  → Prismatic (base = id - 2000)
+    //   < 500 → Silver (base directo)
+    // CDragon solo mapea ~227 augments. Si no encontramos ni el ID directo ni la base,
+    // al menos mostramos el tier deducido del rango y el ID.
+    $augments = [];
+    foreach ($augmentIds as $id) {
+        // Detectar tier por rango del ID (siempre, incluso si no encontramos data)
+        if     ($id >= 2000) $tier = 'prismatic';
+        elseif ($id >= 1000) $tier = 'gold';
+        else                 $tier = 'silver';
+
+        // Buscar la base que CDragon SÍ tiene mirrorizada
+        $baseId = $id;
+        if (!isset($augmentsMap[$id])) {
+            if ($tier === 'prismatic' && isset($augmentsMap[$id - 2000])) $baseId = $id - 2000;
+            elseif ($tier === 'gold'   && isset($augmentsMap[$id - 1000])) $baseId = $id - 1000;
+        }
+
+        $tierLabel = ['silver' => 'Plata', 'gold' => 'Oro', 'prismatic' => 'Prismático'][$tier];
+        $nameFallback = "Augment $id ($tierLabel) — sin datos en CDragon";
+
+        $augments[] = [
+            'id'       => $id,
+            'tier'     => $tier,
+            'name'     => $augmentsMap[$baseId]['name']     ?? $nameFallback,
+            'desc'     => $augmentsMap[$baseId]['desc']     ?? "Este augment ($tierLabel, ID $id) todavía no está documentado en CommunityDragon. Se actualiza con cada parche del juego.",
+            'icon'     => $augmentsMap[$baseId]['icon']     ?? '',
+            'icon_alt' => $augmentsMap[$baseId]['icon_alt'] ?? '',
+        ];
+    }
 
     echo json_encode([
         'ok'              => true,

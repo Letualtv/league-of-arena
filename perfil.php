@@ -364,7 +364,7 @@ include __DIR__ . '/includes/header.php';
         $durMM = floor(((float)$arenaStats['dur_media']) / 60);
         $durSS = (int)((float)$arenaStats['dur_media']) % 60;
     ?>
-    <div class="card">
+    <div class="card" style="margin:1.5rem 0">
         <h2 class="card-title">Estadísticas de Arena</h2>
         <div class="arena-stats-grid">
             <div class="arena-stat">
@@ -576,7 +576,10 @@ include __DIR__ . '/includes/header.php';
 }
 .detail-tip { cursor: pointer; transition: transform .15s, border-color .15s; }
 .detail-tip:hover { transform: scale(1.08); border-color: var(--gold); }
-.detail-augment { border-color: #c89b3c; background: #1a1410; }
+.detail-augment { border-color: #b8c5d6; background: #1a1410; border-width: 2px; }
+.detail-augment.tier-silver    { border-color: #b8c5d6; box-shadow: 0 0 0 1px rgba(184,197,214,0.2); }
+.detail-augment.tier-gold      { border-color: #f0c040; box-shadow: 0 0 6px rgba(240,192,64,0.4); }
+.detail-augment.tier-prismatic { border-color: #b07aff; box-shadow: 0 0 8px rgba(176,122,255,0.55); }
 .detail-augment.detail-augment-fallback {
     display: inline-flex; align-items: center; justify-content: center;
     text-align: center;
@@ -691,11 +694,11 @@ include __DIR__ . '/includes/header.php';
             ? d.mi_augments.map(a => {
                 const desc = (a.desc || '').replace(/"/g, '&quot;');
                 const alt  = (a.icon_alt || '').replace(/"/g, '&quot;');
-                // Si la primera URL falla, intenta la versión sin sufijo de temporada antes de mostrar fallback de texto
+                const tier = a.tier || 'silver';
                 const onerr = alt
                     ? `if(!this.dataset.tried){this.dataset.tried=1;this.src='${alt}';}else{this.classList.add('detail-augment-fallback');this.removeAttribute('src');this.setAttribute('alt',this.dataset.name);}`
                     : `this.classList.add('detail-augment-fallback');this.removeAttribute('src');this.setAttribute('alt',this.dataset.name);`;
-                return `<img class="detail-augment detail-tip" src="${a.icon}" alt="${a.name}"
+                return `<img class="detail-augment detail-tip tier-${tier}" src="${a.icon}" alt="${a.name}"
                             data-name="${a.name}" data-desc="${desc}"
                             onerror="${onerr}">`;
             }).join('')
