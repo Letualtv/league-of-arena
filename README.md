@@ -294,8 +294,11 @@ http://localhost/Leagueofarena/fix_logros.php
 
 > **Solo accesible para el administrador** con sesión iniciada. Si entra otra persona, recibe un 403.
 
-> **¿Qué pasa con los logros que ya tenían desbloqueados los jugadores?**  
-> Sí, se vacía `logros_desbloqueados` y aparentemente todos pierden sus logros — pero **se recuperan automáticamente** la próxima vez que cada jugador pulse el botón **Actualizar** en su perfil. `LogrosManager::verificarYDesbloquear()` re-evalúa todos los logros contra sus stats actuales (partidas, victorias, campeones ganados…) y vuelve a marcar los que ya cumplía. No se pierde nada: solo se "resetea el conteo" momentáneamente.
+> **¿Borra los logros personalizados creados desde el panel admin?**  
+> **No.** Usa `INSERT ... ON DUPLICATE KEY UPDATE` por `clave`: inserta o actualiza los logros del set oficial y deja intactos los custom (los que tienen claves distintas a las del set oficial).
+>
+> **¿Y los logros que los jugadores ya tenían desbloqueados?**  
+> Tampoco se tocan. Como los IDs se mantienen al hacer upsert, `logros_desbloqueados` sigue siendo válido. Nadie pierde nada.
 
 **Orden correcto al instalar desde cero:**
 

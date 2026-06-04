@@ -6,10 +6,8 @@ require_once __DIR__ . '/includes/helpers.php';
 
 $db = getDB();
 requireAdmin($db);
-$db->exec("SET FOREIGN_KEY_CHECKS = 0");
-$db->exec("TRUNCATE TABLE logros_desbloqueados");
-$db->exec("TRUNCATE TABLE logros");
-$db->exec("SET FOREIGN_KEY_CHECKS = 1");
+// Upsert por clave: actualiza los logros oficiales sin tocar los custom creados desde el panel admin.
+// Como los IDs se mantienen, logros_desbloqueados sigue válido y nadie pierde sus logros.
 
 // Columnas: clave, nombre, descripcion, titulo, icono, tipo, valor_objetivo
 // titulo = null → el logro no desbloquea ningún título
@@ -183,7 +181,14 @@ $logros = [
     ['arena_dios',       'Dios de la Arena',     'Desbloquea todos los logros de campeón individual. El roster entero es tuyo','Dios de la Arena',   'fa-solid fa-bolt',      'total',    30],
 ];
 
-$stmt = $db->prepare("INSERT INTO logros (clave, nombre, descripcion, titulo, icono, tipo, valor_objetivo) VALUES (?,?,?,?,?,?,?)");
+$stmt = $db->prepare("INSERT INTO logros (clave, nombre, descripcion, titulo, icono, tipo, valor_objetivo) VALUES (?,?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE
+        nombre         = VALUES(nombre),
+        descripcion    = VALUES(descripcion),
+        titulo         = VALUES(titulo),
+        icono          = VALUES(icono),
+        tipo           = VALUES(tipo),
+        valor_objetivo = VALUES(valor_objetivo)");
 foreach ($logros as $l) {
     $stmt->execute($l);
 }
