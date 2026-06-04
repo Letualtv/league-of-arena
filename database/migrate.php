@@ -1,9 +1,11 @@
 <?php
+session_start();
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 
 $db = getDB();
+requireAdmin($db);
 $ok = [];
 $err = [];
 
@@ -54,6 +56,10 @@ runAlter($db,
 runAlter($db,
     "ALTER TABLE invocadores ADD COLUMN ranked_solo VARCHAR(50) NULL DEFAULT NULL",
     "invocadores.ranked_solo"
+);
+runAlter($db,
+    "ALTER TABLE invocadores ADD COLUMN ranked_flex VARCHAR(50) NULL DEFAULT NULL",
+    "invocadores.ranked_flex"
 );
 runAlter($db,
     "ALTER TABLE invocadores ADD COLUMN top_campeon VARCHAR(50) NULL DEFAULT NULL",

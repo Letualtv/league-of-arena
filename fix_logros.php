@@ -1,9 +1,11 @@
 <?php
+session_start();
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/helpers.php';
 
 $db = getDB();
+requireAdmin($db);
 $db->exec("SET FOREIGN_KEY_CHECKS = 0");
 $db->exec("TRUNCATE TABLE logros_desbloqueados");
 $db->exec("TRUNCATE TABLE logros");

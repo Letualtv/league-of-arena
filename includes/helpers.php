@@ -80,6 +80,33 @@ function isAdmin(?array $invocador): bool
         && strtolower($invocador['tag_line'])  === strtolower(ADMIN_TAG_LINE);
 }
 
+// Devuelve el invocador admin si hay sesión activa que le pertenezca, o null
+function getAdminFromSession(PDO $db): ?array
+{
+    foreach ($_SESSION as $key => $val) {
+        if (!str_starts_with($key, 'auth_') || !$val) continue;
+        $stmt = $db->prepare('SELECT * FROM invocadores WHERE puuid = ?');
+        $stmt->execute([substr($key, 5)]);
+        $inv = $stmt->fetch();
+        if ($inv && isAdmin($inv)) return $inv;
+    }
+    return null;
+}
+
+// Bloquea el script si no hay un admin con sesión iniciada
+function requireAdmin(PDO $db): void
+{
+    if (getAdminFromSession($db)) return;
+    http_response_code(403);
+    echo '<!doctype html><meta charset="utf-8"><title>Acceso denegado</title>';
+    echo '<div style="font-family:system-ui;max-width:480px;margin:4rem auto;padding:2rem;border:1px solid #444;border-radius:8px;text-align:center;background:#1a1a1a;color:#eee">';
+    echo '<h2 style="color:#c89b3c">🔒 Acceso restringido</h2>';
+    echo '<p>Este script solo puede ejecutarlo el administrador con sesión iniciada.</p>';
+    echo '<p><a href="' . BASE_URL . '" style="color:#c89b3c">Volver al inicio</a></p>';
+    echo '</div>';
+    exit;
+}
+
 function getConfig(PDO $db, string $clave, $default = null)
 {
     try {

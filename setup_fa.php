@@ -1,5 +1,11 @@
 <?php
 // Descarga Font Awesome 6 localmente para no depender de CDN
+session_start();
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/helpers.php';
+requireAdmin(getDB());
+
 $baseUrl  = 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1';
 $cssDir   = __DIR__ . '/assets/fa/css/';
 $webfontDir = __DIR__ . '/assets/fa/webfonts/';
@@ -13,7 +19,6 @@ $css    = file_get_contents($cssUrl);
 if (!$css) { die('ERROR: No se pudo descargar el CSS de Font Awesome. Comprueba la conexión.'); }
 
 // Ajustar rutas de webfonts en el CSS para que apunten a la carpeta local
-require_once __DIR__ . '/config/config.php';
 $css = str_replace('../webfonts/', BASE_URL . 'assets/fa/webfonts/', $css);
 file_put_contents($cssDir . 'all.min.css', $css);
 echo "CSS descargado.<br>";

@@ -62,9 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // No está en BD: distinguir entre API caída y jugador inexistente
         if (!$apiDisponible) {
-            $error = 'La API Key de Riot no está configurada. Solo pueden entrar jugadores ya registrados.';
+            $error = 'La API Key de Riot no está configurada. Solo pueden entrar jugadores ya registrados — contacta con el administrador del sitio.';
         } elseif ($apiHttpCode === 401 || $apiHttpCode === 403) {
-            $error = 'La API de Riot no está disponible ahora mismo (key caducada). Si ya tenías cuenta, comprueba que escribes tu Riot ID exacto. No se pueden registrar nuevas cuentas hasta que se renueve la key.';
+            $error = 'La API de Riot no está disponible ahora mismo (key caducada). Si ya tenías cuenta, comprueba que escribes tu Riot ID exacto. No se pueden registrar nuevas cuentas hasta que el administrador renueve la key.';
         } else {
             $error = 'No se encontró "' . htmlspecialchars($input) . '" en ' . $region . '.';
         }

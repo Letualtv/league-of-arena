@@ -193,6 +193,8 @@ Si ya tienes la base de datos creada y el proyecto ha evolucionado con nuevas co
 http://localhost/Leagueofarena/database/migrate.php
 ```
 
+> **Solo accesible para el administrador** con sesión iniciada (igual que `fix_logros.php` y `setup_fa.php`). Si todavía no tienes admin (instalación nueva), ejecútalo en local antes de subir a producción, o gatealo temporalmente comentando la línea `requireAdmin($db);`.
+
 Aplica los `ALTER TABLE` de forma segura (ignora columnas que ya existan). Columnas que añade sobre el schema base:
 
 - `logros.tipo` → VARCHAR(30) en lugar de ENUM
@@ -200,7 +202,8 @@ Aplica los `ALTER TABLE` de forma segura (ignora columnas que ya existan). Colum
 - `logros.titulo` → título que desbloquea el logro
 - `logros.creado_en` → timestamp para el badge "NUEVO"
 - `invocadores.pin_hash` → autenticación por PIN
-- `invocadores.ranked_solo` → rango actual
+- `invocadores.ranked_solo` → rango actual en Ranked Solo
+- `invocadores.ranked_flex` → rango actual en Ranked Flex
 - `invocadores.top_campeon` → campeón más jugado
 - `invocadores.titulo_activo` → título seleccionado por el jugador
 - `campeones_ganados.campeon_clase` → clase del campeón
@@ -221,7 +224,7 @@ Cualquier jugador puede buscar su nombre en la app y ver su perfil público. Par
 3. Si nadie ha reclamado esa cuenta todavía, se te pedirá que establezcas un PIN de 4-8 dígitos. **El primero en hacerlo se convierte en propietario.**
 4. En visitas siguientes, introduces el PIN para iniciar sesión.
 
-> El PIN se guarda como hash bcrypt en la base de datos. No se puede recuperar si se olvida (habría que resetear el campo `pin_hash` en la BD directamente).
+> El PIN se guarda como hash bcrypt en la base de datos y no se puede recuperar si se olvida. Si lo pierdes, pide al **administrador** que lo resetee desde el panel (sección Cuentas → botón **Resetear PIN**); la cuenta quedará libre para que la vuelvas a reclamar con un PIN nuevo. Como último recurso, también se puede vaciar el campo `pin_hash` directamente en la BD.
 
 ---
 
@@ -289,7 +292,10 @@ El archivo `fix_logros.php` vacía la tabla `logros` y la rellena con el set com
 http://localhost/Leagueofarena/fix_logros.php
 ```
 
-> **Atención:** borra y recrea todos los logros y los desbloqueos (`logros_desbloqueados`). Úsalo solo en desarrollo o cuando hagas un reset intencionado de los logros.
+> **Solo accesible para el administrador** con sesión iniciada. Si entra otra persona, recibe un 403.
+
+> **¿Qué pasa con los logros que ya tenían desbloqueados los jugadores?**  
+> Sí, se vacía `logros_desbloqueados` y aparentemente todos pierden sus logros — pero **se recuperan automáticamente** la próxima vez que cada jugador pulse el botón **Actualizar** en su perfil. `LogrosManager::verificarYDesbloquear()` re-evalúa todos los logros contra sus stats actuales (partidas, victorias, campeones ganados…) y vuelve a marcar los que ya cumplía. No se pierde nada: solo se "resetea el conteo" momentáneamente.
 
 **Orden correcto al instalar desde cero:**
 

@@ -9,20 +9,7 @@ require_once __DIR__ . '/includes/LogrosManager.php';
 $db = getDB();
 
 // ===== Identificar al admin =====
-// Buscar si hay alguna sesión activa que corresponda al admin
-$adminInvocador = null;
-foreach ($_SESSION as $key => $val) {
-    if (str_starts_with($key, 'auth_') && $val) {
-        $puuidSession = substr($key, 5);
-        $stmt = $db->prepare('SELECT * FROM invocadores WHERE puuid = ?');
-        $stmt->execute([$puuidSession]);
-        $inv = $stmt->fetch();
-        if ($inv && isAdmin($inv)) {
-            $adminInvocador = $inv;
-            break;
-        }
-    }
-}
+$adminInvocador = getAdminFromSession($db);
 
 if (!$adminInvocador) {
     http_response_code(403);

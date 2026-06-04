@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS invocadores (
     nivel           INT          DEFAULT 1,
     pin_hash        VARCHAR(255) NULL DEFAULT NULL,
     ranked_solo     VARCHAR(50)  NULL DEFAULT NULL,
+    ranked_flex     VARCHAR(50)  NULL DEFAULT NULL,
     top_campeon     VARCHAR(50)  NULL DEFAULT NULL,
     titulo_activo   VARCHAR(100) NULL DEFAULT NULL,
     actualizado_en  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

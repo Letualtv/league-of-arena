@@ -119,15 +119,22 @@ class RiotAPI
     }
 
     // Versión actual de Data Dragon (con caché de 1 hora)
+    private static function ensureCacheDir(): string
+    {
+        $dir = __DIR__ . '/../cache';
+        if (!is_dir($dir)) @mkdir($dir, 0755, true);
+        return $dir;
+    }
+
     public static function getDDragonVersion(): string
     {
-        $cacheFile = __DIR__ . '/../cache/ddragon_version.txt';
+        $cacheFile = self::ensureCacheDir() . '/ddragon_version.txt';
         if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 3600)) {
             return trim(file_get_contents($cacheFile));
         }
-        $versions = @json_decode(file_get_contents(DDRAGON_BASE . '/api/versions.json'), true);
-        $version  = $versions[0] ?? '14.24.1';
-        file_put_contents($cacheFile, $version);
+        $versions = @json_decode(@file_get_contents(DDRAGON_BASE . '/api/versions.json'), true);
+        $version  = $versions[0] ?? (file_exists($cacheFile) ? trim(file_get_contents($cacheFile)) : '14.24.1');
+        @file_put_contents($cacheFile, $version);
         return $version;
     }
 
@@ -135,7 +142,7 @@ class RiotAPI
     public static function getChampions(): array
     {
         $version   = self::getDDragonVersion();
-        $cacheFile = __DIR__ . '/../cache/champions.json';
+        $cacheFile = self::ensureCacheDir() . '/champions.json';
         if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 86400)) {
             return json_decode(file_get_contents($cacheFile), true) ?: [];
         }

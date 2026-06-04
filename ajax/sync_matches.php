@@ -17,7 +17,7 @@ try {
     }
 
     if (RIOT_API_KEY === 'RGAPI-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX') {
-        echo json_encode(['ok' => false, 'error' => 'Configura tu API Key en config/config.php']);
+        echo json_encode(['ok' => false, 'error' => 'La API Key de Riot no está configurada. Contacta con el administrador del sitio.']);
         exit;
     }
 
@@ -29,8 +29,8 @@ try {
     if (!$summoner) {
         $code  = $api->lastHttpCode;
         $error = ($code === 403 || $code === 401)
-            ? 'La API Key ha caducado. Contacta con Letual para renovarla.'
-            : 'No se pudo conectar con la API de Riot. Contacta con Letual si el problema persiste.';
+            ? 'La API Key de Riot ha caducado. Contacta con el administrador del sitio para renovarla.'
+            : 'No se pudo conectar con la API de Riot. Inténtalo de nuevo en unos minutos.';
         echo json_encode(['ok' => false, 'error' => $error]);
         exit;
     }
